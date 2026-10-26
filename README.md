@@ -1,20 +1,25 @@
 # SenseDoc
 
-**Turn messy documents into clean, validated, structured data — using fields you define.**
+**An AI platform for your documents: extract the data you need, and ask questions about the rest.**
 
-SenseDoc is an intelligent document processing (IDP) platform. You describe the data you want (a template of fields and types), upload files in bulk, and SenseDoc extracts those fields from PDFs, scans, phone photos, spreadsheets and Word files. Values it isn't sure about go to a human for review before export, so what comes out can be trusted.
+Upload PDFs, scans, phone photos, spreadsheets and Word files in bulk. SenseDoc reads them once and gives you two capabilities:
 
-> **Status:** early development. The design is complete; the MVP is being built. Features below marked *(planned)* are not available yet.
+- **Extraction.** Define the fields you want (a template of names and types) and get clean, validated, structured data. Values it isn't sure about go to a human for review before export.
+- **Knowledge assistant.** Ask questions in plain language, such as "What are the payment terms on invoice INV-104?", and get answers from your own documents, with the document and page cited. If the answer isn't in your files, SenseDoc says so.
+
+> **Status:** early development. The design is complete; extraction is being built first, and the knowledge assistant follows. Features below marked *(planned)* are not available yet.
 
 ---
 
 ## Why
 
-Many teams still copy data by hand from invoices, receipts, price lists, shelf photos, CVs and waybills into spreadsheets. It is slow, error-prone and does not scale. SenseDoc automates that work while showing where every value came from and how confident it is.
+Many teams still copy data by hand from invoices, receipts, price lists, shelf photos, CVs and waybills into spreadsheets, and open files one by one to answer simple questions. Both are slow, error-prone and do not scale. SenseDoc automates both, while showing where every value and every answer came from.
 
-**Built for:** data analysts, operations and finance teams, and market research firms. For example, a retail data company tracking prices by brand, variant and size (Coca-Cola Original vs Zero, 35cl vs 50cl).
+**Built for:** data analysts, operations and finance teams, market research firms, and anyone who needs answers from contracts, policies, reports or invoices. For example, a retail data company tracking prices by brand, variant and size (Coca-Cola Original vs Zero, 35cl vs 50cl), then asking "Which shop had the cheapest Coke Zero 50cl this week?"
 
 ## How it works
+
+### Extraction
 
 ```
 Define template → Upload files → Extract text → LLM extraction → Validate → Score confidence
@@ -33,6 +38,18 @@ Define template → Upload files → Extract text → LLM extraction → Validat
 6. **Review.** Low-confidence values are shown beside the source document to approve or correct.
 7. **Export.** CSV, Excel or JSON.
 
+### Knowledge assistant *(planned)*
+
+```
+Uploaded files → Parsed text → Chunks + embeddings (pgvector) → Retrieve relevant chunks → LLM answer with citations
+```
+
+1. **Reuse the parsed text.** The same text extraction step feeds both capabilities.
+2. **Index.** Text is split into chunks by page, embedded, and stored in PostgreSQL with pgvector.
+3. **Retrieve.** Your question is matched to the most relevant chunks.
+4. **Answer.** The LLM answers only from those chunks and cites the document and page, or says the answer isn't there.
+5. **Exact numbers.** Questions about totals across many files are answered from the validated extracted data, not raw text.
+
 ## Features
 
 | Feature | Status |
@@ -50,6 +67,7 @@ Define template → Upload files → Extract text → LLM extraction → Validat
 | Model routing (cheap model for easy pages) | *planned* |
 | REST API webhooks | *planned* |
 | Analytics dashboard | *planned* |
+| Knowledge assistant: ask questions about your documents (RAG) | *planned* |
 
 ### Product and variant matching
 
@@ -61,12 +79,12 @@ SenseDoc ties every price to one exact product variant, not just a brand. It ext
 | --- | --- |
 | Backend API | Python, FastAPI |
 | Schemas and validation | Pydantic |
-| LLM orchestration | LangChain |
+| LLM orchestration | LangChain (extraction now; retrieval for the planned knowledge assistant) |
 | Background jobs | Celery + Redis |
 | PDF / layout / OCR | PyMuPDF, Docling or Surya, PaddleOCR (Tesseract fallback) |
 | Spreadsheets / Word | pandas, openpyxl, python-docx |
 | Models | One API model (OpenAI, Claude or Gemini) + one open-weight vision model |
-| Database | PostgreSQL |
+| Database | PostgreSQL (+ pgvector for the planned knowledge assistant) |
 | Frontend | React (Streamlit for the first version) |
 | Observability | Langfuse |
 | Deployment | Docker Compose |
@@ -84,6 +102,7 @@ SenseDoc ties every price to one exact product variant, not just a brand. It ext
 | PATCH | `/values/{id}` | Approve or correct a value |
 | GET | `/templates/{id}/export?format=csv\|xlsx\|json` | Export approved data |
 | GET | `/metrics` | Accuracy, review rate, cost and latency |
+| POST | `/ask` | Ask a question about uploaded documents; answer with citations |
 
 ## Getting started
 
@@ -91,7 +110,7 @@ Setup instructions will be added once the first runnable version is in place.
 
 ## Evaluation
 
-SenseDoc will be measured against a hand-labelled test set of 150–200 documents (invoices, receipts, price lists and shelf photos, CVs or waybills), including deliberately hard cases such as blurry photos, rotated pages and multi-page tables. The evaluation runs in CI on every change.
+SenseDoc will be measured against a hand-labelled test set of 150–200 documents (invoices, receipts, price lists and shelf photos, CVs or waybills), including deliberately hard cases such as blurry photos, rotated pages and multi-page tables, plus 50+ question/answer pairs over the same documents for the knowledge assistant. The evaluation runs in CI on every change.
 
 **Targets** (to be replaced with measured results):
 
@@ -102,6 +121,9 @@ SenseDoc will be measured against a hand-labelled test set of 150–200 document
 | Fields auto-approved without review | ≥ 70% |
 | Median processing time per page | ≤ 10 s |
 | Cost per 1,000 pages | Reported per model route |
+| Correct answers to test questions | ≥ 85% |
+| Citations that support the answer | ≥ 95% |
+| Correct refusal when the answer isn't in the files | ≥ 90% |
 
 ## Roadmap
 
@@ -111,3 +133,4 @@ SenseDoc will be measured against a hand-labelled test set of 150–200 document
 - [ ] Evaluation set and CI accuracy runs
 - [ ] Hosted version with ready-made templates (invoice, receipt, price list)
 - [ ] Demo video and evaluation report
+- [ ] Knowledge assistant: ask questions about uploaded documents (RAG)

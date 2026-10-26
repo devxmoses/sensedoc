@@ -1,0 +1,28 @@
+[project]
+name = "sensedoc"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "DevXMoses", email = "mosesoparah@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "google-genai>=2.33.0",
+    "langchain>=1.4.7",
+    "langchain-google-genai>=4.4.2",
+    "openpyxl>=3.1.5",
+    "pandas>=3.1.0",
+    "pydantic>=2.14.1",
+    "pymupdf>=2.0",
+    "python-docx>=1.2.0",
+    "python-dotenv>=1.2.4",
+    "streamlit>=1.66.1",
+]
+
+[project.scripts]
+sensedoc = "sensedoc:main"
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"

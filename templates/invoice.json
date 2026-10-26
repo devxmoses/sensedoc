@@ -1,0 +1,22 @@
+{
+  "name": "Supplier Invoice",
+  "document_type": "invoice",
+  "fields": [
+    {"name": "Invoice Number", "type": "text", "required": true,
+     "description": "The invoice ID", "examples": ["INV-2026-0001"]},
+    {"name": "Invoice Date", "type": "date", "required": true,
+     "description": "Date the invoice was issued"},
+    {"name": "Supplier", "type": "text",
+     "description": "Company that issued the invoice"},
+    {"name": "Total Amount", "type": "currency", "required": true,
+     "description": "Final amount due, including tax"},
+    {"name": "Items", "type": "table",
+     "description": "Every product line on the invoice",
+     "columns": [
+       {"name": "Product", "type": "text", "description": "Product name exactly as written"},
+       {"name": "Quantity", "type": "number"},
+       {"name": "Unit Price", "type": "currency"},
+       {"name": "Line Total", "type": "currency"}
+     ]}
+  ]
+}

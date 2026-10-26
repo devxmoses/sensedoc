@@ -1,1 +1,7 @@
 plan_docs/
+.env
+.venv/
+__pycache__/
+*.pyc
+.agents/skills/
+.claude/
