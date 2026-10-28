@@ -7,7 +7,7 @@ Upload PDFs, scans, phone photos, spreadsheets and Word files in bulk. SenseDoc 
 - **Extraction.** Define the fields you want (a template of names and types) and get clean, validated, structured data. Values it isn't sure about go to a human for review before export.
 - **Knowledge assistant.** Ask questions in plain language, such as "What are the payment terms on invoice INV-104?", and get answers from your own documents, with the document and page cited. If the answer isn't in your files, SenseDoc says so.
 
-> **Status:** early development. The design is complete; extraction is being built first, and the knowledge assistant follows. Features below marked *(planned)* are not available yet.
+> **Status:** the extraction MVP works end to end: templates, multi-format upload, LLM extraction with retries and fallback, validation and confidence, review queue, product/variant matching, export, metrics, tests, evaluation and Docker. The knowledge assistant and the items marked *(planned)* are not built yet. A step-by-step explanation of how it was built is in [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md).
 
 ---
 
@@ -89,7 +89,9 @@ SenseDoc ties every price to one exact product variant, not just a brand. It ext
 | Observability | Langfuse |
 | Deployment | Docker Compose |
 
-## API overview *(planned)*
+## API overview
+
+Interactive docs at `http://localhost:8000/docs` once the API is running.
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
@@ -102,11 +104,53 @@ SenseDoc ties every price to one exact product variant, not just a brand. It ext
 | PATCH | `/values/{id}` | Approve or correct a value |
 | GET | `/templates/{id}/export?format=csv\|xlsx\|json` | Export approved data |
 | GET | `/metrics` | Accuracy, review rate, cost and latency |
-| POST | `/ask` | Ask a question about uploaded documents; answer with citations |
+| POST | `/ask` | Ask a question about uploaded documents; answer with citations *(planned)* |
 
 ## Getting started
 
-Setup instructions will be added once the first runnable version is in place.
+You need [uv](https://docs.astral.sh/uv/) and a Gemini API key.
+
+```bash
+git clone <this repo> && cd sensedoc
+uv sync
+cp .env.example .env        # then add your GOOGLE_API_KEY
+
+uv run uvicorn sensedoc.api:app     # landing page + API: http://localhost:8000
+uv run streamlit run ui/app.py      # web app:            http://localhost:8501
+```
+
+On first start, SenseDoc creates a local SQLite database and loads three ready-made templates (invoice, receipt, product price list) and a sample SKU catalogue. Demo files are in `samples/demo/`.
+
+**Full stack with Docker** (PostgreSQL, Redis, API, Celery worker, UI):
+
+```bash
+docker compose up --build
+```
+
+**Tests and evaluation:**
+
+```bash
+uv run pytest -q                                   # 23 tests, no API key needed
+uv run python evaluation/make_dataset.py           # build the labelled test set
+uv run python evaluation/run_eval.py               # measure accuracy, cost and latency
+```
+
+### Project layout
+
+| Path | What's there |
+| --- | --- |
+| `src/sensedoc/schema_builder.py` | Templates → Pydantic models at runtime |
+| `src/sensedoc/readers.py` | PDF, scans, images, Excel/CSV, Word → text and/or images |
+| `src/sensedoc/extractor.py` | Gemini via LangChain, with re-prompting, fallback and cost tracking |
+| `src/sensedoc/validator.py`, `normalize.py` | Grounding, required fields, sum rules, normalization, confidence |
+| `src/sensedoc/matching.py` | Product/variant matching to the SKU catalogue |
+| `src/sensedoc/pipeline.py`, `worker.py` | The per-document pipeline and background jobs (Celery) |
+| `src/sensedoc/db.py`, `api.py`, `export.py` | Database tables, REST API, CSV/Excel/JSON export |
+| `ui/` | Streamlit web app |
+| `web/index.html` | Landing page |
+| `templates/` | Ready-made templates |
+| `evaluation/` | Labelled test set generator, evaluation script, results |
+| `tests/` | pytest suite |
 
 ## Evaluation
 
@@ -127,10 +171,11 @@ SenseDoc will be measured against a hand-labelled test set of 150–200 document
 
 ## Roadmap
 
-- [ ] Core pipeline: upload → extract → validate → export
-- [ ] Review queue and confidence scoring
-- [ ] Product and variant matching
-- [ ] Evaluation set and CI accuracy runs
+- [x] Core pipeline: upload → extract → validate → export
+- [x] Review queue and confidence scoring
+- [x] Product and variant matching
+- [x] Evaluation set and CI accuracy runs (synthetic set of 17; real-document set next)
+- [ ] OCR route (PaddleOCR) with word positions for source highlighting
 - [ ] Hosted version with ready-made templates (invoice, receipt, price list)
 - [ ] Demo video and evaluation report
 - [ ] Knowledge assistant: ask questions about uploaded documents (RAG)

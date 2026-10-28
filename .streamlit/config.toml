@@ -1,0 +1,43 @@
+# SenseDoc brand theme (teal), with the light/dark toggle kept available
+
+[theme]
+showWidgetBorder = true
+baseRadius = "8px"
+buttonRadius = "8px"
+font = "'Inter':https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+codeFont = "'JetBrains Mono':https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
+baseFontSize = 14
+headingFontWeights = [700, 600, 600, 600, 600, 600]
+
+[theme.light]
+primaryColor = "#0F766E"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F4F7F6"
+textColor = "#0B1F1D"
+linkColor = "#0F766E"
+borderColor = "#DDE5E3"
+greenColor = "#16A34A"
+redColor = "#DC2626"
+yellowColor = "#CA8A04"
+chartCategoricalColors = ["#0F766E", "#F59E0B", "#6366F1", "#DC2626", "#64748B"]
+
+[theme.dark]
+primaryColor = "#2DD4BF"
+backgroundColor = "#0B1514"
+secondaryBackgroundColor = "#13211F"
+textColor = "#E6F2F0"
+linkColor = "#5EEAD4"
+borderColor = "#22332F"
+greenColor = "#4ADE80"
+redColor = "#F87171"
+yellowColor = "#FACC15"
+chartCategoricalColors = ["#2DD4BF", "#FBBF24", "#818CF8", "#F87171", "#94A3B8"]
+
+[theme.light.sidebar]
+backgroundColor = "#F4F7F6"
+
+[theme.dark.sidebar]
+backgroundColor = "#0F1B19"
+
+[server]
+maxUploadSize = 20

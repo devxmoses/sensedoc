@@ -1,0 +1,61 @@
+# Full stack:  docker compose up --build
+#   landing page + API  http://localhost:8000   (API docs at /docs)
+#   web app             http://localhost:8501
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: sensedoc
+      POSTGRES_PASSWORD: sensedoc
+      POSTGRES_DB: sensedoc
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sensedoc"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+
+  api:
+    build: .
+    env_file: .env
+    environment: &backend-env
+      DATABASE_URL: postgresql+psycopg://sensedoc:sensedoc@postgres:5432/sensedoc
+      CELERY_BROKER_URL: redis://redis:6379/0
+      STORAGE_DIR: /data/storage
+      UI_URL: http://localhost:8501
+    volumes:
+      - files:/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  worker:
+    build: .
+    command: celery -A sensedoc.worker worker --loglevel=info --concurrency=2
+    env_file: .env
+    environment: *backend-env
+    volumes:
+      - files:/data  # the worker reads the files the API saved
+    depends_on:
+      - api
+
+  ui:
+    build: .
+    command: streamlit run ui/app.py --server.port 8501 --server.address 0.0.0.0
+    environment:
+      SENSEDOC_API_URL: http://api:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  files:

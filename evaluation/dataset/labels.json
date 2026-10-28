@@ -1,0 +1,585 @@
+[
+  {
+    "file": "invoice_00.pdf",
+    "template": "invoice",
+    "route": "text",
+    "pair": 0,
+    "expected": {
+      "invoice_number": "INV-2026-9313",
+      "invoice_date": "2026-09-04",
+      "supplier": "ADEBAYO SUPPLIES LTD",
+      "subtotal": 74880,
+      "tax": 5616.0,
+      "total_amount": 80496.0,
+      "items": [
+        {
+          "product": "Coke Zero 33cl Can",
+          "quantity": 48,
+          "unit_price": 450,
+          "line_total": 21600
+        },
+        {
+          "product": "Sprite 50cl PET",
+          "quantity": 6,
+          "unit_price": 480,
+          "line_total": 2880
+        },
+        {
+          "product": "Coca-Cola Original 50cl PET",
+          "quantity": 24,
+          "unit_price": 500,
+          "line_total": 12000
+        },
+        {
+          "product": "Pepsi 1L PET",
+          "quantity": 48,
+          "unit_price": 800,
+          "line_total": 38400
+        }
+      ]
+    }
+  },
+  {
+    "file": "invoice_00_photo.png",
+    "template": "invoice",
+    "route": "vision",
+    "pair": 0,
+    "expected": {
+      "invoice_number": "INV-2026-9313",
+      "invoice_date": "2026-09-04",
+      "supplier": "ADEBAYO SUPPLIES LTD",
+      "subtotal": 74880,
+      "tax": 5616.0,
+      "total_amount": 80496.0,
+      "items": [
+        {
+          "product": "Coke Zero 33cl Can",
+          "quantity": 48,
+          "unit_price": 450,
+          "line_total": 21600
+        },
+        {
+          "product": "Sprite 50cl PET",
+          "quantity": 6,
+          "unit_price": 480,
+          "line_total": 2880
+        },
+        {
+          "product": "Coca-Cola Original 50cl PET",
+          "quantity": 24,
+          "unit_price": 500,
+          "line_total": 12000
+        },
+        {
+          "product": "Pepsi 1L PET",
+          "quantity": 48,
+          "unit_price": 800,
+          "line_total": 38400
+        }
+      ]
+    }
+  },
+  {
+    "file": "invoice_01.pdf",
+    "template": "invoice",
+    "route": "text",
+    "pair": 1,
+    "expected": {
+      "invoice_number": "INV-2026-7955",
+      "invoice_date": "2026-09-06",
+      "supplier": "LAKESIDE DRINKS DISTRIBUTION",
+      "subtotal": 7920,
+      "tax": 594.0,
+      "total_amount": 8514.0,
+      "items": [
+        {
+          "product": "Sprite 50cl PET",
+          "quantity": 6,
+          "unit_price": 480,
+          "line_total": 2880
+        },
+        {
+          "product": "Diet Coke 33cl Can",
+          "quantity": 12,
+          "unit_price": 420,
+          "line_total": 5040
+        }
+      ]
+    }
+  },
+  {
+    "file": "invoice_01_photo.png",
+    "template": "invoice",
+    "route": "vision",
+    "pair": 1,
+    "expected": {
+      "invoice_number": "INV-2026-7955",
+      "invoice_date": "2026-09-06",
+      "supplier": "LAKESIDE DRINKS DISTRIBUTION",
+      "subtotal": 7920,
+      "tax": 594.0,
+      "total_amount": 8514.0,
+      "items": [
+        {
+          "product": "Sprite 50cl PET",
+          "quantity": 6,
+          "unit_price": 480,
+          "line_total": 2880
+        },
+        {
+          "product": "Diet Coke 33cl Can",
+          "quantity": 12,
+          "unit_price": 420,
+          "line_total": 5040
+        }
+      ]
+    }
+  },
+  {
+    "file": "invoice_02.pdf",
+    "template": "invoice",
+    "route": "text",
+    "pair": 2,
+    "expected": {
+      "invoice_number": "INV-2026-7499",
+      "invoice_date": "2026-10-07",
+      "supplier": "OKAFOR & SONS TRADING",
+      "subtotal": 54000,
+      "tax": 4050.0,
+      "total_amount": 58050.0,
+      "items": [
+        {
+          "product": "Coke Zero 33cl Can",
+          "quantity": 48,
+          "unit_price": 450,
+          "line_total": 21600
+        },
+        {
+          "product": "Coca-Cola 35cl Can x12",
+          "quantity": 6,
+          "unit_price": 5400,
+          "line_total": 32400
+        }
+      ]
+    }
+  },
+  {
+    "file": "invoice_02_photo.png",
+    "template": "invoice",
+    "route": "vision",
+    "pair": 2,
+    "expected": {
+      "invoice_number": "INV-2026-7499",
+      "invoice_date": "2026-10-07",
+      "supplier": "OKAFOR & SONS TRADING",
+      "subtotal": 54000,
+      "tax": 4050.0,
+      "total_amount": 58050.0,
+      "items": [
+        {
+          "product": "Coke Zero 33cl Can",
+          "quantity": 48,
+          "unit_price": 450,
+          "line_total": 21600
+        },
+        {
+          "product": "Coca-Cola 35cl Can x12",
+          "quantity": 6,
+          "unit_price": 5400,
+          "line_total": 32400
+        }
+      ]
+    }
+  },
+  {
+    "file": "invoice_03.pdf",
+    "template": "invoice",
+    "route": "text",
+    "pair": 3,
+    "expected": {
+      "invoice_number": "INV-2026-2929",
+      "invoice_date": "2026-10-05",
+      "supplier": "NORTHGATE WHOLESALE",
+      "subtotal": 46200,
+      "tax": 3465.0,
+      "total_amount": 49665.0,
+      "items": [
+        {
+          "product": "Coca-Cola Original 50cl PET",
+          "quantity": 24,
+          "unit_price": 500,
+          "line_total": 12000
+        },
+        {
+          "product": "Pepsi 1L PET",
+          "quantity": 36,
+          "unit_price": 800,
+          "line_total": 28800
+        },
+        {
+          "product": "Coke Zero 33cl Can",
+          "quantity": 12,
+          "unit_price": 450,
+          "line_total": 5400
+        }
+      ]
+    }
+  },
+  {
+    "file": "invoice_03_photo.png",
+    "template": "invoice",
+    "route": "vision",
+    "pair": 3,
+    "expected": {
+      "invoice_number": "INV-2026-2929",
+      "invoice_date": "2026-10-05",
+      "supplier": "NORTHGATE WHOLESALE",
+      "subtotal": 46200,
+      "tax": 3465.0,
+      "total_amount": 49665.0,
+      "items": [
+        {
+          "product": "Coca-Cola Original 50cl PET",
+          "quantity": 24,
+          "unit_price": 500,
+          "line_total": 12000
+        },
+        {
+          "product": "Pepsi 1L PET",
+          "quantity": 36,
+          "unit_price": 800,
+          "line_total": 28800
+        },
+        {
+          "product": "Coke Zero 33cl Can",
+          "quantity": 12,
+          "unit_price": 450,
+          "line_total": 5400
+        }
+      ]
+    }
+  },
+  {
+    "file": "invoice_04.pdf",
+    "template": "invoice",
+    "route": "text",
+    "pair": 4,
+    "expected": {
+      "invoice_number": "INV-2026-2028",
+      "invoice_date": "2026-10-06",
+      "supplier": "ADEBAYO SUPPLIES LTD",
+      "subtotal": 57600,
+      "tax": 4320.0,
+      "total_amount": 61920.0,
+      "items": [
+        {
+          "product": "Coca-Cola Original 50cl PET",
+          "quantity": 12,
+          "unit_price": 500,
+          "line_total": 6000
+        },
+        {
+          "product": "Pepsi 1L PET",
+          "quantity": 24,
+          "unit_price": 800,
+          "line_total": 19200
+        },
+        {
+          "product": "Coca-Cola 35cl Can x12",
+          "quantity": 6,
+          "unit_price": 5400,
+          "line_total": 32400
+        }
+      ]
+    }
+  },
+  {
+    "file": "invoice_04_photo.png",
+    "template": "invoice",
+    "route": "vision",
+    "pair": 4,
+    "expected": {
+      "invoice_number": "INV-2026-2028",
+      "invoice_date": "2026-10-06",
+      "supplier": "ADEBAYO SUPPLIES LTD",
+      "subtotal": 57600,
+      "tax": 4320.0,
+      "total_amount": 61920.0,
+      "items": [
+        {
+          "product": "Coca-Cola Original 50cl PET",
+          "quantity": 12,
+          "unit_price": 500,
+          "line_total": 6000
+        },
+        {
+          "product": "Pepsi 1L PET",
+          "quantity": 24,
+          "unit_price": 800,
+          "line_total": 19200
+        },
+        {
+          "product": "Coca-Cola 35cl Can x12",
+          "quantity": 6,
+          "unit_price": 5400,
+          "line_total": 32400
+        }
+      ]
+    }
+  },
+  {
+    "file": "invoice_05.pdf",
+    "template": "invoice",
+    "route": "text",
+    "pair": 5,
+    "expected": {
+      "invoice_number": "INV-2026-8424",
+      "invoice_date": "2026-10-08",
+      "supplier": "LAKESIDE DRINKS DISTRIBUTION",
+      "subtotal": 175680,
+      "tax": 13176.0,
+      "total_amount": 188856.0,
+      "items": [
+        {
+          "product": "Sprite 50cl PET",
+          "quantity": 36,
+          "unit_price": 480,
+          "line_total": 17280
+        },
+        {
+          "product": "Coca-Cola 35cl Can x12",
+          "quantity": 24,
+          "unit_price": 5400,
+          "line_total": 129600
+        },
+        {
+          "product": "Pepsi 1L PET",
+          "quantity": 36,
+          "unit_price": 800,
+          "line_total": 28800
+        }
+      ]
+    }
+  },
+  {
+    "file": "invoice_05_photo.png",
+    "template": "invoice",
+    "route": "vision",
+    "pair": 5,
+    "expected": {
+      "invoice_number": "INV-2026-8424",
+      "invoice_date": "2026-10-08",
+      "supplier": "LAKESIDE DRINKS DISTRIBUTION",
+      "subtotal": 175680,
+      "tax": 13176.0,
+      "total_amount": 188856.0,
+      "items": [
+        {
+          "product": "Sprite 50cl PET",
+          "quantity": 36,
+          "unit_price": 480,
+          "line_total": 17280
+        },
+        {
+          "product": "Coca-Cola 35cl Can x12",
+          "quantity": 24,
+          "unit_price": 5400,
+          "line_total": 129600
+        },
+        {
+          "product": "Pepsi 1L PET",
+          "quantity": 36,
+          "unit_price": 800,
+          "line_total": 28800
+        }
+      ]
+    }
+  },
+  {
+    "file": "receipt_00.png",
+    "template": "receipt",
+    "route": "vision",
+    "expected": {
+      "store_name": "SHOPRITE LEKKI",
+      "receipt_date": "2026-10-17",
+      "receipt_number": "619167",
+      "total_amount": 10300,
+      "payment_method": "CARD",
+      "items": [
+        {
+          "product": "RICE 1KG",
+          "quantity": 1,
+          "line_total": 1900
+        },
+        {
+          "product": "BREAD LOAF",
+          "quantity": 3,
+          "line_total": 3600
+        },
+        {
+          "product": "EGGS 12",
+          "quantity": 2,
+          "line_total": 4800
+        }
+      ]
+    }
+  },
+  {
+    "file": "receipt_01.png",
+    "template": "receipt",
+    "route": "vision",
+    "expected": {
+      "store_name": "SPAR VICTORIA ISLAND",
+      "receipt_date": "2026-10-14",
+      "receipt_number": "141111",
+      "total_amount": 6750,
+      "payment_method": "TRANSFER",
+      "items": [
+        {
+          "product": "FANTA 35CL",
+          "quantity": 1,
+          "line_total": 350
+        },
+        {
+          "product": "COKE 50CL",
+          "quantity": 2,
+          "line_total": 1000
+        },
+        {
+          "product": "EGGS 12",
+          "quantity": 1,
+          "line_total": 2400
+        },
+        {
+          "product": "INDOMIE X5",
+          "quantity": 2,
+          "line_total": 3000
+        }
+      ]
+    }
+  },
+  {
+    "file": "receipt_02.png",
+    "template": "receipt",
+    "route": "vision",
+    "expected": {
+      "store_name": "JUSTRITE IKORODU",
+      "receipt_date": "2026-10-09",
+      "receipt_number": "597128",
+      "total_amount": 17300,
+      "payment_method": "TRANSFER",
+      "items": [
+        {
+          "product": "FANTA 35CL",
+          "quantity": 2,
+          "line_total": 700
+        },
+        {
+          "product": "PEAK MILK 400G",
+          "quantity": 3,
+          "line_total": 8400
+        },
+        {
+          "product": "EGGS 12",
+          "quantity": 2,
+          "line_total": 4800
+        },
+        {
+          "product": "RICE 1KG",
+          "quantity": 1,
+          "line_total": 1900
+        },
+        {
+          "product": "INDOMIE X5",
+          "quantity": 1,
+          "line_total": 1500
+        }
+      ]
+    }
+  },
+  {
+    "file": "leaflet_01.png",
+    "template": "price_list",
+    "route": "vision",
+    "expected": {
+      "store_name": "SUNRISE MART",
+      "products": [
+        {
+          "product_text": "Coca-Cola 50cl",
+          "sku": "CC-ORIG-500-PET",
+          "price": 500
+        },
+        {
+          "product_text": "Coke Zero Can",
+          "sku": null,
+          "price": 450
+        },
+        {
+          "product_text": "Coca-Cola 35cl 12 cans",
+          "sku": "CC-ORIG-350-CAN-12",
+          "price": 5400
+        },
+        {
+          "product_text": "Coke 35cl Can",
+          "sku": "CC-ORIG-350-CAN",
+          "price": 300
+        },
+        {
+          "product_text": "Coke Zero 50cl",
+          "sku": "CC-ZERO-500-PET",
+          "price": 520
+        },
+        {
+          "product_text": "Fanta Orange 35cl",
+          "sku": "FANTA-ORA-350-CAN",
+          "price": 350
+        }
+      ]
+    }
+  },
+  {
+    "file": "leaflet_02.png",
+    "template": "price_list",
+    "route": "vision",
+    "expected": {
+      "store_name": "GREEN BASKET STORES",
+      "products": [
+        {
+          "product_text": "Coke",
+          "sku": null,
+          "price": 400
+        },
+        {
+          "product_text": "Diet Coke 33cl",
+          "sku": "CC-DIET-330-CAN",
+          "price": 420
+        },
+        {
+          "product_text": "Sprite 50cl",
+          "sku": "SPRITE-500-PET",
+          "price": 480
+        },
+        {
+          "product_text": "Pepsi 1L",
+          "sku": "PEPSI-ORIG-1000-PET",
+          "price": 800
+        },
+        {
+          "product_text": "Coca-Cola cans 33cl / 35cl",
+          "sku": "CC-ORIG-330-CAN",
+          "price": 280
+        },
+        {
+          "product_text": "Coca-Cola cans 33cl / 35cl",
+          "sku": "CC-ORIG-350-CAN",
+          "price": 300
+        },
+        {
+          "product_text": "Fanta Orange 35cl 12-pack",
+          "sku": "FANTA-ORA-350-CAN-12",
+          "price": 4000
+        }
+      ]
+    }
+  }
+]

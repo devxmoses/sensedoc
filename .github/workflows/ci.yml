@@ -1,0 +1,31 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync
+      - run: uv run pytest -q
+
+  # accuracy run against the labelled set; needs a GEMINI key stored as a repository secret
+  evaluation:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: tests
+    env:
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync
+      - run: uv run python evaluation/make_dataset.py && uv run python evaluation/run_eval.py
+        if: env.GOOGLE_API_KEY != ''
+      - uses: actions/upload-artifact@v4
+        if: env.GOOGLE_API_KEY != ''
+        with:
+          name: evaluation-results
+          path: evaluation/RESULTS.md

@@ -16,12 +16,26 @@ class TemplateField(BaseModel):
     description: str = ""
     examples: list[str] = []
     columns: list["TemplateField"] = []  # only used when type is "table"
+    normalize: Literal["volume_ml"] | None = None  # optional clean-up step
+
+
+class Rule(BaseModel):
+    """A cross-field check, e.g. 'the line totals must add up to the subtotal'."""
+
+    type: Literal["table_sum", "fields_sum"]
+    target: str  # the field that should equal the sum
+    table: str | None = None  # table_sum: which table
+    column: str | None = None  # table_sum: which column to add up
+    fields: list[str] = []  # fields_sum: which fields to add up
+    tolerance: float = 0.01  # allow tiny rounding differences
 
 
 class Template(BaseModel):
     name: str
     document_type: str
     fields: list[TemplateField]
+    rules: list[Rule] = []
+    product_table: str | None = None  # table whose rows are matched to the SKU catalogue
 
 
 # ---------- Template type → Python type ----------

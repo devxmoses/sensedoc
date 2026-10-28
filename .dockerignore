@@ -1,0 +1,10 @@
+.venv
+.git
+.env
+**/__pycache__
+storage
+sensedoc.db
+scratch
+evaluation/dataset
+plan_docs
+.claude
