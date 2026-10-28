@@ -6,6 +6,7 @@ import httpx
 import streamlit as st
 
 API_URL = os.getenv("SENSEDOC_API_URL", "http://localhost:8000")
+API_TOKEN = os.getenv("API_TOKEN", "")  # must match the API's API_TOKEN when that is set
 
 STATUS_ICONS = {
     "queued": ":material/schedule:",
@@ -18,7 +19,8 @@ STATUS_ICONS = {
 
 @st.cache_resource
 def http() -> httpx.Client:
-    return httpx.Client(base_url=API_URL, timeout=120)
+    headers = {"Authorization": f"Bearer {API_TOKEN}"} if API_TOKEN else {}
+    return httpx.Client(base_url=API_URL, timeout=120, headers=headers)
 
 
 def get(path: str, **params):
@@ -34,9 +36,11 @@ def send(method: str, path: str, **kwargs):
     return response.json()
 
 
-@st.cache_data(ttl=600, max_entries=200, show_spinner=False)
-def preview_png(document_id: int, page: int = 1) -> bytes | None:
-    response = http().get(f"/documents/{document_id}/preview", params={"page": page})
+@st.cache_data(ttl=600, max_entries=300, show_spinner=False)
+def preview_png(document_id: int, page: int = 1, value_id: int | None = None) -> bytes | None:
+    """A page image; with value_id, that value is boxed where it was found."""
+    params = {"page": page, **({"value_id": value_id} if value_id else {})}
+    response = http().get(f"/documents/{document_id}/preview", params=params)
     return response.content if response.status_code == 200 else None
 
 

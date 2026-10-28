@@ -5,7 +5,9 @@ Docs:    http://localhost:8000/docs
 """
 
 import hashlib
+import io
 import json
+import mimetypes
 import os
 import statistics
 import uuid
@@ -15,8 +17,10 @@ from pathlib import Path
 from typing import Any, Literal
 
 import pymupdf
-from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Response, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from PIL import Image as PILImage
+from PIL import ImageDraw
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -26,35 +30,51 @@ from sensedoc.db import (
     DocumentRow,
     ExtractedValueRow,
     ExtractionRunRow,
+    LabelRow,
     ProductRow,
     ReviewRow,
     SessionLocal,
     TemplateFieldRow,
     TemplateRow,
     latest_templates,
+    now,
     save_template,
     template_from_row,
 )
-from sensedoc.export import export_rows, to_file
-from sensedoc.pipeline import import_catalogue_csv, row_alias_for, seed, storage_path_for
-from sensedoc.readers import IMAGE_TYPES
+from sensedoc.assistant import ask, index_document
+from sensedoc.export import export_rows, labelled_answer, to_file
+from sensedoc import storage
+from sensedoc.pipeline import import_catalogue_csv, purge_old_files, row_alias_for, seed
+from sensedoc.readers import IMAGE_TYPES, read_document
 from sensedoc.schema_builder import Template
 from sensedoc.worker import enqueue
 
 SUPPORTED = {".pdf", ".xlsx", ".csv", ".docx", *IMAGE_TYPES}
 LANDING_PAGE = config.PROJECT_ROOT / "web" / "index.html"
 UI_URL = os.getenv("UI_URL", "http://localhost:8501")
-EVAL_RESULTS = config.PROJECT_ROOT / "evaluation" / "results.json"
+EVAL_DIR = config.PROJECT_ROOT / "evaluation"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    storage.ensure_bucket()
     with SessionLocal() as db:
         seed(db)
+        purge_old_files(db)
     yield
 
 
 app = FastAPI(title="SenseDoc API", version="0.1.0", lifespan=lifespan)
+PUBLIC_PATHS = {"/", "/app", "/health", "/evaluation", "/docs", "/openapi.json"}
+
+
+@app.middleware("http")
+async def require_token(request: Request, call_next):
+    """With API_TOKEN set, callers must send 'Authorization: Bearer <token>'."""
+    if config.API_TOKEN and request.url.path not in PUBLIC_PATHS:
+        if request.headers.get("authorization") != f"Bearer {config.API_TOKEN}":
+            return JSONResponse({"detail": "missing or wrong API token"}, status_code=401)
+    return await call_next(request)
 
 
 def get_db():
@@ -76,6 +96,12 @@ def open_app() -> RedirectResponse:
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+@app.get("/evaluation")
+def evaluation() -> dict | None:
+    """Published accuracy results (public: the landing page shows them)."""
+    return latest_evaluation()
 
 
 # ---------- Templates ----------
@@ -158,6 +184,8 @@ def value_out(v: ExtractedValueRow) -> dict:
         "issues": v.issues,
         "matched_sku": v.matched_sku,
         "candidate_skus": v.candidate_skus,
+        "page": v.page,
+        "bbox": v.bbox,
     }
 
 
@@ -178,13 +206,12 @@ async def upload_documents(
         if len(data) > config.MAX_FILE_MB * 1024 * 1024:
             raise HTTPException(413, f"{upload.filename}: larger than {config.MAX_FILE_MB} MB")
 
-        path = storage_path_for(f"{uuid.uuid4().hex}{suffix}")
-        path.write_bytes(data)
+        ref = storage.save(f"{uuid.uuid4().hex}{suffix}", data, upload.content_type or "application/octet-stream")
         doc = DocumentRow(
             template_id=template_id,
             filename=upload.filename,
             file_type=suffix.lstrip("."),
-            storage_path=str(path),
+            storage_path=ref,
             sha256=hashlib.sha256(data).hexdigest(),
         )
         db.add(doc)
@@ -212,24 +239,56 @@ def get_document(document_id: int, db: Session = Depends(get_db)) -> dict:
 
 
 @app.get("/documents/{document_id}/file")
-def get_document_file(document_id: int, db: Session = Depends(get_db)) -> FileResponse:
+def get_document_file(document_id: int, db: Session = Depends(get_db)) -> Response:
     doc = get_or_404(db, DocumentRow, document_id)
-    return FileResponse(doc.storage_path, filename=doc.filename)
+    try:
+        data = storage.read_bytes(doc.storage_path)
+    except FileNotFoundError:
+        raise HTTPException(410, "the original file was deleted after the retention period")
+    media_type = mimetypes.guess_type(doc.filename)[0] or "application/octet-stream"
+    return Response(data, media_type=media_type, headers={"Content-Disposition": f'attachment; filename="{doc.filename}"'})
 
 
 @app.get("/documents/{document_id}/preview")
-def preview(document_id: int, page: int = 1, db: Session = Depends(get_db)) -> Response:
-    """A PNG of one page, shown next to the values in the review screen."""
+def preview(document_id: int, page: int = 1, value_id: int | None = None, db: Session = Depends(get_db)) -> Response:
+    """A PNG of one page, shown next to the values. With value_id, that value is boxed on its page."""
     doc = get_or_404(db, DocumentRow, document_id)
+    value = get_or_404(db, ExtractedValueRow, value_id) if value_id else None
+    if value and value.page:
+        page = value.page
     suffix = "." + doc.file_type
+    if suffix not in IMAGE_TYPES and suffix != ".pdf":
+        raise HTTPException(404, "no preview for this file type")
+    try:
+        data = storage.read_bytes(doc.storage_path)
+    except FileNotFoundError:
+        raise HTTPException(410, "the original file was deleted after the retention period")
+
     if suffix in IMAGE_TYPES:
-        return FileResponse(doc.storage_path, media_type=IMAGE_TYPES[suffix])
-    if suffix == ".pdf":
-        with pymupdf.open(doc.storage_path) as pdf:
+        png = data
+    else:
+        with pymupdf.open(stream=data, filetype="pdf") as pdf:
             if not 1 <= page <= len(pdf):
                 raise HTTPException(404, "no such page")
-            return Response(pdf[page - 1].get_pixmap(dpi=110).tobytes("png"), media_type="image/png")
-    raise HTTPException(404, "no preview for this file type")
+            png = pdf[page - 1].get_pixmap(dpi=110).tobytes("png")
+
+    if value and value.bbox:
+        png = highlight(png, value.bbox)
+    return Response(png, media_type="image/png")
+
+
+def highlight(png: bytes, bbox: list[float]) -> bytes:
+    """Draw a box around one value: the reviewer sees exactly where it came from."""
+    image = PILImage.open(io.BytesIO(png)).convert("RGB")
+    w, h = image.size
+    x0, y0, x1, y1 = bbox[0] * w, bbox[1] * h, bbox[2] * w, bbox[3] * h
+    pad = max(4, int(0.006 * w))
+    overlay = PILImage.new("RGBA", image.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    draw.rectangle((x0 - pad, y0 - pad, x1 + pad, y1 + pad), fill=(245, 158, 11, 60), outline=(217, 119, 6, 255), width=max(3, pad // 2))
+    out = io.BytesIO()
+    PILImage.alpha_composite(image.convert("RGBA"), overlay).convert("RGB").save(out, format="PNG")
+    return out.getvalue()
 
 
 @app.post("/documents/{document_id}/reprocess", status_code=202)
@@ -366,8 +425,80 @@ def metrics(db: Session = Depends(get_db)) -> dict:
         "cost_usd": round(sum(r.cost_usd for r in runs), 4),
         "cost_per_1000_pages_usd": round(sum(r.cost_usd for r in runs) / pages * 1000, 2) if pages else None,
         "models": dict(db.execute(select(ExtractionRunRow.model, func.count()).group_by(ExtractionRunRow.model)).all()),
-        "evaluation": json.loads(EVAL_RESULTS.read_text()) if EVAL_RESULTS.exists() else None,
+        "evaluation": latest_evaluation(),
     }
+
+
+def latest_evaluation() -> dict | None:
+    """Results on real labelled documents if they exist, otherwise on the synthetic set."""
+    for name, label in (("results_real.json", "real documents"), ("results.json", "synthetic documents")):
+        path = EVAL_DIR / name
+        if path.exists():
+            return {**json.loads(path.read_text()), "set": label}
+    return None
+
+
+# ---------- Labels: verified answers that grow the real evaluation set ----------
+class LabelIn(BaseModel):
+    labelled_by: str = "reviewer"
+
+
+@app.post("/documents/{document_id}/label", status_code=201)
+def label_document(document_id: int, body: LabelIn, db: Session = Depends(get_db)) -> dict:
+    doc = get_or_404(db, DocumentRow, document_id)
+    if not doc.runs:
+        raise HTTPException(409, "this document has not been processed yet")
+    if any(v.status == "needs_review" for v in doc.runs[-1].values):
+        raise HTTPException(409, "review every uncertain value before saving it as a label")
+    label = db.scalar(select(LabelRow).where(LabelRow.document_id == doc.id)) or LabelRow(document_id=doc.id)
+    label.expected = labelled_answer(doc)
+    label.labelled_by = body.labelled_by
+    label.created_at = now()
+    db.add(label)
+    db.commit()
+    return {"id": label.id, "document_id": doc.id, "fields": len(label.expected)}
+
+
+@app.get("/labels")
+def list_labels(db: Session = Depends(get_db)) -> list[dict]:
+    return [
+        {
+            "id": label.id,
+            "document_id": label.document_id,
+            "filename": label.document.filename,
+            "template": label.document.template.name,
+            "labelled_by": label.labelled_by,
+            "created_at": label.created_at,
+        }
+        for label in db.scalars(select(LabelRow).order_by(LabelRow.id.desc())).all()
+    ]
+
+
+# ---------- Knowledge assistant ----------
+class Question(BaseModel):
+    question: str
+    document_ids: list[int] | None = None
+
+
+@app.post("/ask")
+def ask_question(body: Question, db: Session = Depends(get_db)) -> dict:
+    """Answer from the uploaded documents only, citing document and page."""
+    try:
+        return ask(db, body.question, body.document_ids)
+    except Exception as e:
+        raise HTTPException(503, f"the language model is unavailable: {type(e).__name__}")
+
+
+@app.post("/assistant/reindex")
+def reindex(db: Session = Depends(get_db)) -> dict:
+    """Index documents uploaded before the assistant existed (or after changing the embedding model)."""
+    indexed = 0
+    for doc in db.scalars(select(DocumentRow)).all():
+        if storage.exists(doc.storage_path):
+            with storage.local_copy(doc.storage_path) as path:
+                indexed += index_document(db, doc.id, read_document(path)) > 0
+    db.commit()
+    return {"documents_indexed": indexed}
 
 
 def get_or_404(db: Session, model, key):

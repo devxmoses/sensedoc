@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from sensedoc.normalize import NORMALIZERS
+from sensedoc.ocr import Line
 from sensedoc.readers import ParsedDocument
 from sensedoc.schema_builder import Rule, Template, TemplateField, to_key
 
@@ -26,6 +27,8 @@ class FieldResult:
     status: str = "auto_approved"  # or "needs_review"
     issues: list[str] = field(default_factory=list)
     candidate_skus: list[dict] | None = None  # only for product-match rows
+    page: int | None = None  # where the value was found, for source highlighting
+    bbox: tuple[float, float, float, float] | None = None
 
     def flag(self, issue: str, penalty: float) -> None:
         self.issues.append(issue)
@@ -65,6 +68,17 @@ def in_text(value: Any, text: str) -> bool:
     return any(squash(form) in page for form in written_forms(value))
 
 
+def locate(value: Any, lines: list[Line]) -> Line | None:
+    """The line where a value is printed. With several matches, the shortest line is the tightest fit."""
+    if isinstance(value, list):
+        value = value[0] if value else None
+    if value is None or not lines:
+        return None
+    forms = [f for f in (squash(form) for form in written_forms(value)) if f]
+    matches = [line for line in lines if any(f in squash(line.text) for f in forms)]
+    return min(matches, key=lambda line: len(line.text), default=None)
+
+
 # ---------- Checks on a single value ----------
 def check_value(name: str, value: Any, template_field: TemplateField, doc: ParsedDocument) -> FieldResult:
     result = FieldResult(name=name, value=value)
@@ -76,11 +90,17 @@ def check_value(name: str, value: Any, template_field: TemplateField, doc: Parse
 
     if doc.text and in_text(value, doc.text):
         pass  # found it written in the document: keep full confidence
+    elif doc.images and doc.ocr_text and in_text(value, doc.ocr_text):
+        pass  # read from a picture, and OCR read the same thing independently
     elif doc.images:
         result.confidence = IMAGE_ONLY_CONFIDENCE
-        result.issues.append("read from an image, not cross-checked")
+        result.issues.append("read from an image, not confirmed by OCR")
     else:
         result.flag("value not found in the document text", NOT_IN_TEXT_PENALTY)
+
+    line = locate(value, doc.lines)
+    if line:
+        result.page, result.bbox = line.page, line.bbox
 
     if template_field.normalize:
         result.normalized_value = NORMALIZERS[template_field.normalize](str(value))

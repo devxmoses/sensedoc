@@ -22,9 +22,16 @@ reviewer = st.text_input("Your name", value=st.session_state.get("reviewer", "re
 
 left, right = st.columns([2, 3])
 with left:
-    png = preview_png(choice)
+    items = documents[choice]["items"]
+    shown = st.selectbox(
+        "Show on the page",
+        range(len(items)),
+        format_func=lambda i: items[i]["field_path"] + ("" if items[i]["bbox"] else "  (position unknown)"),
+    )
+    item = items[shown]
+    png = preview_png(choice, item["page"] or 1, item["id"] if item["bbox"] else None)
     if png:
-        st.image(png, alt=f"Page 1 of {documents[choice]['filename']}")
+        st.image(png, alt=f"Page of {documents[choice]['filename']} with {item['field_path']} highlighted")
     else:
         st.caption("No preview for this file type.")
 

@@ -3,7 +3,7 @@
 #   web app             http://localhost:8501
 services:
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16  # PostgreSQL with the pgvector extension (Supabase has it built in)
     environment:
       POSTGRES_USER: sensedoc
       POSTGRES_PASSWORD: sensedoc

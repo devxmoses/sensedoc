@@ -2,13 +2,13 @@
 
 import csv
 import re
-from pathlib import Path
 
 from pydantic_core import to_jsonable_python
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from sensedoc import config
+from sensedoc import config, storage
+from sensedoc.assistant import index_document
 from sensedoc.db import (
     DocumentRow,
     ExtractedValueRow,
@@ -21,6 +21,7 @@ from sensedoc.db import (
     save_template,
     template_from_row,
 )
+from sensedoc.embeddings import similarity_by_meaning
 from sensedoc.extractor import PROMPT_VERSION, extract
 from sensedoc.matching import Product, match_products, row_alias
 from sensedoc.readers import read_document
@@ -71,10 +72,12 @@ def process_document(document_id: int) -> str:
 
         template = template_from_row(doc.template)
         try:
-            parsed = read_document(doc.storage_path)
+            with storage.local_copy(doc.storage_path) as path:
+                parsed = read_document(path)
             doc.page_count = parsed.page_count
             if parsed.page_count > config.MAX_PAGES:
                 raise ValueError(f"{parsed.page_count} pages; the limit is {config.MAX_PAGES}")
+            index_document(db, doc.id, parsed)  # the knowledge assistant can search it from now on
             output = extract(parsed, template)
         except Exception as e:  # never crash the job: record why and move on
             doc.status, doc.error = "failed", f"{type(e).__name__}: {e}"[:2000]
@@ -82,7 +85,9 @@ def process_document(document_id: int) -> str:
             return doc.status
 
         results = validate(output.data, template, parsed)
-        results += match_products(output.data.model_dump(), template, load_catalogue(db))
+        results += match_products(
+            output.data.model_dump(), template, load_catalogue(db), parsed.lines, similarity_by_meaning
+        )
 
         # older runs of this document no longer count
         old_runs = [r.id for r in doc.runs]
@@ -112,6 +117,8 @@ def process_document(document_id: int) -> str:
                     value=to_jsonable_python(r.value),
                     normalized_value=to_jsonable_python(r.normalized_value),
                     confidence=r.confidence,
+                    page=r.page,
+                    bbox=list(r.bbox) if r.bbox else None,
                     status=r.status,
                     issues=r.issues,
                     matched_sku=r.value if is_sku else None,
@@ -139,11 +146,6 @@ def seed(db: Session) -> None:
         import_catalogue_csv(db, catalogue.read_text())
 
 
-def storage_path_for(name: str) -> Path:
-    config.STORAGE_DIR.mkdir(parents=True, exist_ok=True)
-    return config.STORAGE_DIR / name
-
-
 def row_alias_for(sku_value: ExtractedValueRow) -> str:
     """Rebuild the product row behind a '<table>[i].sku' value and return its alias text."""
     prefix = sku_value.field_path.removesuffix("sku")  # "products[3]."
@@ -153,3 +155,19 @@ def row_alias_for(sku_value: ExtractedValueRow) -> str:
         if v.field_path.startswith(prefix) and v.id != sku_value.id
     }
     return row_alias(row)
+
+
+def purge_old_files(db: Session) -> int:
+    """Delete uploaded files older than RETENTION_DAYS. Extracted values and reviews are kept."""
+    if config.RETENTION_DAYS <= 0:
+        return 0
+    from datetime import datetime, timedelta, timezone
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=config.RETENTION_DAYS)
+    deleted = 0
+    for doc in db.scalars(select(DocumentRow)).all():
+        uploaded = doc.uploaded_at if doc.uploaded_at.tzinfo else doc.uploaded_at.replace(tzinfo=timezone.utc)
+        if uploaded < cutoff and storage.exists(doc.storage_path):
+            storage.delete(doc.storage_path)
+            deleted += 1
+    return deleted

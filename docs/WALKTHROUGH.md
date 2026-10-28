@@ -34,12 +34,14 @@ flowchart LR
 | Schemas | Pydantic | Turn a user's template into a strict data model |
 | LLM | Gemini via LangChain | Read the document and fill the model |
 | Reading files | PyMuPDF, pandas, python-docx | PDF text and page images, Excel/CSV, Word |
+| OCR | RapidOCR (ONNX, CPU) | Text and positions on photos and scans: source highlighting, confirming values |
 | Checks | Our own validator | Grounding, required fields, sum rules, confidence |
 | Matching | rapidfuzz | Tie each price to one exact product SKU |
 | API | FastAPI | Upload, status, review, export, metrics |
 | Jobs | Celery + Redis | Slow LLM work runs outside web requests |
 | Database | PostgreSQL (SQLite locally) | Templates, documents, runs, values, reviews, products |
 | UI | Streamlit + an HTML landing page | Everything a user clicks |
+| Assistant | Gemini embeddings + LLM | Answers questions from the documents, with page citations |
 | Quality | pytest + an evaluation script | Tests on every change; measured accuracy |
 | Deploy | Docker Compose | One command starts the whole stack |
 
@@ -81,7 +83,7 @@ Users define their own fields, so we can't hand-write a class for every template
 
 **Rule: text if available, image if not.** Images cost more tokens, and text is exact. For images, Gemini is a **vision model**: it sees the layout, so it knows which price sits next to which product picture. The message to the model is **multimodal**: a list of text parts and base64-encoded images.
 
-> Plan decision: OCR (PaddleOCR) is deferred to Step 8b. It will add word positions (for click-to-see-source) and per-word confidence, and the evaluation will compare it against vision (Experiment 1).
+> OCR was added later, in Step 8b. The vision route stays the default because Experiment 1b measured it as the more accurate one on leaflets.
 
 ## Step 4: Validation, normalization and confidence
 
@@ -170,7 +172,37 @@ On a leaflet that says "Coke", the price might belong to any of 9+ SKUs. The pla
 
 It reproduces the plan's worked example exactly: Coke 50cl auto-matched; Coke Zero can (no size) → review; Coke 35cl x12 → matched, ₦450/unit; bare "Coke" → review with candidates.
 
-> Deviation: the plan suggests embeddings plus fuzzy matching. Fuzzy matching (rapidfuzz) alone works well here, because the hard-attribute filter does most of the work. Embeddings can be added if catalogues have many free-text names.
+### Spelling first, meaning second
+
+Fuzzy matching compares **letters**, so it can't tell that "Light" means the **Diet** SKU, or "Classic" means **Original**. Embeddings compare **meaning**, so they're asked only when spelling can't decide, after the hard filters have narrowed the list:
+
+- Names are compared **with the brand** ("Coca-Cola Light" vs "Coca-Cola Diet"). Bare words were unreliable when measured: "Light" scored closer to *Orange* than to *Diet*.
+- **Rule:** the best flavour must score at least 0.78 **and** beat the runner-up by 0.05. Then it's matched at confidence 0.82 (auto-approved, labelled "matched by meaning").
+- **Only when there are at least two flavours to compare.** With one option left, "Fanta Citrus" scored 0.85 against Orange, higher than the true "Classic" → Original (0.84). No threshold can separate those, so a single option always goes to review.
+
+Measured with real embeddings: Light → Diet ✓, Classic → Original ✓, Regular → Original ✓, while Cherry, Vanilla, Citrus and Pineapple (not in the catalogue) → review ✓. If embeddings are unavailable, matching works exactly as before.
+
+## Step 8b: OCR and source highlighting (`ocr.py`)
+
+Your plan asks to "show where every value came from". For that we need the **position** of every piece of text.
+
+- **Digital PDFs** already store where each word is; PyMuPDF reads those positions directly.
+- **Photos and scans** are only pixels, so we run **OCR** (optical character recognition). We use **RapidOCR**: the same kind of model as PaddleOCR, but packaged as small ONNX files that run on a normal CPU in about 3 seconds per page. It installs with pip, with no system packages and no GPU. Tesseract was the other option, but it needs an admin install and is weaker on receipts.
+- Each line of text gets a **box** stored as fractions of the page (x0, y0, x1, y1 between 0 and 1), so it works at any image size.
+- After extraction, `locate()` finds the line where each value is printed, and its page and box are saved in `extracted_values.page` / `bbox`, columns the plan already had.
+- The preview endpoint draws an **orange box** around a value. In the app, click any value (Documents page) or pick one (Review queue) to see exactly where it came from.
+- **A second opinion for photos:** a value Gemini read from an image that OCR also finds independently goes from 0.85 to 1.0 confidence. OCR can only raise confidence, never lower it.
+
+### Experiment 1b: send the image, or send the OCR text?
+
+Same 11 photos, same model (`gemini-3.5-flash-lite`):
+
+| Route | Field accuracy | Median time | Cost per 1,000 pages |
+| --- | --- | --- | --- |
+| Vision (image) | 100% | 8.4 s | $4.29 |
+| OCR text only | 98% | **2.1 s** | **$2.93** |
+
+OCR text is 4× faster and about 30% cheaper, and it was perfect on invoices and receipts. **On the leaflet, though, it put prices on the wrong products**, and 2 wrong SKUs were auto-approved. OCR text loses the layout (which price sits under which picture), exactly as the plan predicted. So **vision stays the default**. A future "model routing" step could send clean invoices and receipts down the cheaper OCR route. Setting: `EXTRACTION_ROUTE=vision|ocr|hybrid`.
 
 ## Step 9: The user interface
 
@@ -187,7 +219,9 @@ It reproduces the plan's worked example exactly: Coke 50cl auto-matched; Coke Ze
 | Export | Preview, then download CSV / Excel / JSON |
 | Templates | The **schema builder**: an editable table of fields, table columns, rules; saving creates a new version |
 | Product catalogue | SKUs, learned aliases, CSV import |
+| Ask your documents | Chat: questions answered from your files, with document and page citations |
 | Metrics | Live usage plus evaluation results, including Experiment 1 |
+| Label for testing | Check every value of a real document, fix mistakes, save it as a test label |
 
 Streamlit reruns the page script on every click, so anything that must survive (like the list of just-uploaded files) is kept in `st.session_state`.
 
@@ -200,10 +234,57 @@ Streamlit reruns the page script on every click, so anything that must survive (
 - `make_dataset.py` generates **17 labelled documents** whose correct answers we know. Hard cases are included on purpose: invoices as clean PDFs **and** as tilted, blurred phone photos; receipt photos; two supermarket leaflets with look-alike traps (Zero vs Original, can vs bottle, 33cl vs 35cl, a missing size, a "33cl / 35cl – ₦280 / ₦300" line that must be split into two rows, single vs 12-pack).
 - `run_eval.py` runs the real pipeline and scores field accuracy, accuracy of auto-approved values (calibration), review rate, row recall and precision, **variant accuracy**, latency and cost per 1,000 pages. It also runs **Experiment 1**: the same invoices via the text route vs the vision route.
 - Results are written to `evaluation/RESULTS.md` and shown in the app and on the landing page.
+- Free-tier Gemini keys allow about **20 requests per model per day**, so each document's result is cached in `evaluation/runs/`. A run cut off by the quota resumes where it stopped.
 
-## Step 11: Deployment
+### Real documents: the numbers that matter
+
+A perfect score on generated documents means the test set is too easy. The plan says *"Corrections in reviews double as new labelled data"*, so the app turns real files into test data:
+
+1. Upload real files (phone photos of receipts, real supplier invoices, real leaflets).
+2. **Label for testing** page: SenseDoc pre-fills every value; fix the wrong ones and click **Save as test label**. Each fix is also recorded as a review.
+3. `uv run python evaluation/export_labels.py` copies labelled files and answers into `evaluation/real/` (git-ignored, because real invoices contain personal data).
+4. `EVAL_SET=real uv run python evaluation/run_eval.py` writes `RESULTS_REAL.md`. Once it exists, the app and landing page show it instead of the synthetic results.
+
+## Step 11: Knowledge assistant (`assistant.py`)
+
+"Ask your documents": plain-language questions, answered **only** from your files.
+
+1. **Index.** When a document is processed, its text is cut into page-sized chunks (at line breaks, so table rows stay whole) and each chunk is **embedded**: turned into a list of 768 numbers that captures its meaning (`gemini-embedding-001`). They are stored in the `chunks` table.
+2. **Retrieve.** The question is embedded too. Chunks are scored by meaning (cosine similarity, 70%) plus shared keywords (30%), and the top 6 are kept. If embeddings are unavailable (quota), keyword matching alone still works.
+3. **Answer.** Gemini gets the question, the numbered chunks and the document's **verified extracted values**, with strict rules: answer only from these, cite source numbers, and say "the documents don't say" otherwise. Citations the model invents (a source number that wasn't given) are dropped.
+
+Tested: "What is the total due on invoice INV-2026-9313, and who is the supplier?" → *NGN 80,496.00, ADEBAYO SUPPLIES LTD* (cites invoice_00.pdf, page 1). "What is the warranty period for the fridge?" → *The documents don't say.*
+
+**Where the vectors live:**
+
+- **PostgreSQL (Docker or Supabase): pgvector.** The `embedding` column is a real `vector(768)` with an **HNSW index**, so the database finds the closest chunks itself (`ORDER BY embedding <=> question`), without loading every chunk. Databases created before this are upgraded automatically on startup; run *Index older documents* once afterwards.
+- **SQLite (local runs):** SQLite has no vector type, so vectors are stored as JSON and compared in Python. That's fine for local use.
+
+## Step 12: Security and privacy
+
+- **API token** (`API_TOKEN` in `.env`): when set, every API call except the landing page, health check and published evaluation must send `Authorization: Bearer <token>`. The web app sends it automatically.
+- **Web app sign-in** (optional): copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` with an OAuth client (for example Google), and the app requires sign-in through Streamlit's built-in `st.login`. Reviewer names then come from the signed-in account.
+- **Retention** (`RETENTION_DAYS`): uploaded files older than N days are deleted at startup; extracted data and the review trail are kept.
+- Real evaluation files, `.env` and secrets are git-ignored.
+
+## Step 13: Supabase (hosted database + file storage)
+
+Supabase is **hosted PostgreSQL with pgvector built in**, plus file storage. SenseDoc uses it with no code changes, only settings:
+
+1. Create a project at supabase.com (pick the region closest to your users).
+2. *Project Settings → Database → Connection string → **Session pooler***, and put it in `.env` as `DATABASE_URL=postgresql://...` (SenseDoc adds the driver name itself). The session pooler works on IPv4 networks; SenseDoc also turns off prepared statements so the transaction pooler works.
+3. *Project Settings → API*: put the **Project URL** in `SUPABASE_URL` and the **service_role / secret key** in `SUPABASE_SERVICE_KEY`. This key bypasses Supabase's access rules, so keep it server-side only, never in the UI or in git.
+4. Start the API. On first start it enables pgvector, creates the tables and index, loads the templates and catalogue, and creates a private `documents` bucket. Uploaded files are stored there as `supabase://documents/<id>.pdf`.
+
+Without `SUPABASE_URL`, files stay on local disk. Supabase doesn't provide Redis, so a hosted version still needs one for Celery (for example Upstash, or the Redis add-on on Render or Railway).
+
+**Free tier limits to know:** 500 MB of database storage and 1 GB of files, and projects **pause after a week of inactivity**. That's fine for a demo; move to a paid plan before real customer data.
+
+## Step 14: Deployment
 
 `docker compose up --build` starts **PostgreSQL, Redis, the API, a Celery worker and the UI**. One image serves all three app roles. Only the start command differs.
+
+Verified: in the full stack, an uploaded invoice photo went through Redis to the Celery worker, was extracted, OCR-located (14 of 14 values) and saved in PostgreSQL in 10.8 seconds. To put it online, run the same `docker-compose.yml` on any VPS, or deploy the image to Render or Railway with a managed PostgreSQL and Redis.
 
 ---
 
@@ -226,24 +307,27 @@ On first start, the API creates the database and loads three ready-made template
 3. **Upload**: choose *Supplier Invoice* and drop `samples/demo/invoice_00.pdf` and `invoice_01_photo.png` (a tilted, blurred photo). Then *Product Price List* with `samples/demo/leaflet_01.png`. Watch the statuses change live.
 4. **Documents**: open the photo invoice. All values are found, at 0.85 confidence because they came from an image. Show cost (under one US cent) and time.
 5. **Review queue**: the leaflet's "Coke Zero Can" has no size printed. SenseDoc did not guess: it offers 33cl and 35cl. Pick one and explain it is now **learned** (show it under *Product catalogue → learned aliases*).
-6. **Export**: download Excel. One row per product line, with SKU and unit price.
-7. **Metrics**: accuracy from the evaluation, plus Experiment 1, text vs vision.
+6. **Documents → click a value**: the orange box shows exactly where it came from on the page (source highlighting).
+7. **Export**: download Excel. One row per product line, with SKU and unit price.
+8. **Ask your documents**: "What is the total due on invoice …?" (answer with a page citation), then something not in the files (it says so instead of inventing).
+9. **Metrics**: accuracy, plus Experiment 1b: why we send images, not OCR text, for leaflets.
 
 ## Likely questions
 
 - **"What if the model makes something up?"** Every value is checked against the page (grounding) and against sum rules. Invented values score low and go to review. Values with no text to check (photos) never get full confidence.
 - **"How do you know it's accurate?"** A labelled test set with deliberately hard cases, re-run on every change. We report the accuracy of the values we auto-approve, not just overall accuracy.
 - **"What does it cost?"** Tokens are counted per run. Costs are configured in `.env` (the default assumes $1.50 / $7.50 per million input/output tokens; check Google's pricing page). That's well under one US cent per page.
-- **"Why not just OCR?"** OCR gives text but loses layout: on a leaflet you need to know which price sits under which product. OCR is still planned (Step 8b), for word positions and as a cheaper route on clean scans, and Experiment 1 will decide when to use which.
+- **"Why not just OCR?"** We measured it (Experiment 1b). OCR text is 4× faster and 30% cheaper, but on a leaflet it put prices on the wrong products. So we send the image, and use OCR for positions (highlighting) and as an independent check.
 - **"What about privacy?"** Keys stay in `.env`; files are stored locally or in a private volume. Still to do: encryption at rest, automatic deletion after a retention period, and authentication.
 
 ## What's not built yet
 
 | Item | Status |
 | --- | --- |
-| OCR route (PaddleOCR) with word boxes → click-to-see-source highlighting | Next (Step 8b) |
-| Knowledge assistant (ask questions, answers with citations, RAG) | Marked *planned* in the README |
-| Document classification, model routing, webhooks | Later phase in the plan |
+| A real evaluation set (150–200 real documents) | The tooling is built (Label for testing → export → `EVAL_SET=real`); the documents need collecting |
+| Hosted deployment | Docker image builds; needs a hosting account (Render, Railway or a VPS) |
+| Document classification, model routing, webhooks | Later phase in the plan; Experiment 1b gives the data for routing |
 | Langfuse tracing | Not added; cost and latency are tracked in our own tables |
-| Database migrations (Alembic), authentication, file encryption and retention | Needed before a public hosted version |
-| A larger evaluation set (150–200 real documents) | The current 17 are synthetic; real photos are the next step |
+| Supabase project | The code is ready (Step 13); create the project and add its keys to `.env` |
+| Database migrations (Alembic), file encryption at rest | Needed before scaling a public version; new tables were added without needing migrations so far |
+| Demo video and write-up | Launch deliverables, best recorded by you |

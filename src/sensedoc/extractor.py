@@ -62,11 +62,22 @@ def get_llm(model: str) -> ChatGoogleGenerativeAI:
     )
 
 
-def build_messages(doc: ParsedDocument, template: Template) -> list:
+def build_messages(doc: ParsedDocument, template: Template, route: str | None = None) -> list:
+    """route: 'vision' sends page images, 'ocr' sends OCR text instead, 'hybrid' sends both."""
+    route = route or config.EXTRACTION_ROUTE
+    if route != "vision" and not doc.ocr_text:
+        route = "vision"  # nothing was OCR'd, so the image is all we have
     content = [{"type": "text", "text": f"Document type: {template.document_type}"}]
 
     if doc.text:
         content.append({"type": "text", "text": f"Document text:\n\n{doc.text}"})
+
+    if route in ("ocr", "hybrid") and doc.images:
+        content.append(
+            {"type": "text", "text": f"Text read by OCR from the page images (may contain reading errors):\n\n{doc.ocr_text}"}
+        )
+    if route == "ocr":
+        return [SystemMessage(SYSTEM_PROMPT), HumanMessage(content=content)]
 
     for image in doc.images:
         content.append(
@@ -80,7 +91,9 @@ def build_messages(doc: ParsedDocument, template: Template) -> list:
     return [SystemMessage(SYSTEM_PROMPT), HumanMessage(content=content)]
 
 
-def extract(doc: ParsedDocument, template: Template, models: list[str] | None = None) -> ExtractionOutput:
+def extract(
+    doc: ParsedDocument, template: Template, models: list[str] | None = None, route: str | None = None
+) -> ExtractionOutput:
     """Try each model in turn; on bad output, re-prompt with the error before moving on."""
     schema = build_model("Extraction", template.fields)
     models = models or [config.GEMINI_MODEL, config.GEMINI_FALLBACK_MODEL]
@@ -91,7 +104,7 @@ def extract(doc: ParsedDocument, template: Template, models: list[str] | None = 
 
     for model in models:
         llm = get_llm(model).with_structured_output(schema, include_raw=True)
-        messages = build_messages(doc, template)
+        messages = build_messages(doc, template, route)
         fixes = rate_waits = 0
 
         while fixes <= FIX_RETRIES:
