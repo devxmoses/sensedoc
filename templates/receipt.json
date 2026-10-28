@@ -1,0 +1,26 @@
+{
+  "name": "Shop Receipt",
+  "document_type": "receipt",
+  "fields": [
+    {"name": "Store Name", "type": "text", "required": true,
+     "description": "Name of the shop or supermarket"},
+    {"name": "Receipt Date", "type": "date", "required": true,
+     "description": "Date of purchase"},
+    {"name": "Receipt Number", "type": "text",
+     "description": "Receipt, transaction or till number"},
+    {"name": "Total Amount", "type": "currency", "required": true,
+     "description": "Total paid"},
+    {"name": "Payment Method", "type": "text",
+     "description": "How it was paid, e.g. cash, card, transfer"},
+    {"name": "Items", "type": "table",
+     "description": "Every item bought",
+     "columns": [
+       {"name": "Product", "type": "text", "description": "Item name exactly as printed"},
+       {"name": "Quantity", "type": "number"},
+       {"name": "Line Total", "type": "currency"}
+     ]}
+  ],
+  "rules": [
+    {"type": "table_sum", "table": "Items", "column": "Line Total", "target": "Total Amount"}
+  ]
+}

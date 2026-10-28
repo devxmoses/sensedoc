@@ -27,12 +27,14 @@ class Image:
 class ParsedDocument:
     text: str = ""
     images: list[Image] = field(default_factory=list)
+    page_count: int = 1
 
 
 def read_pdf(path: Path) -> ParsedDocument:
     parsed = ParsedDocument()
     texts = []
     with pymupdf.open(path) as pdf:
+        parsed.page_count = len(pdf)
         for number, page in enumerate(pdf, start=1):
             page_text = page.get_text().strip()
             if len(page_text) >= MIN_TEXT_CHARS:

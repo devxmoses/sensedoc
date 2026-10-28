@@ -5,3 +5,7 @@ __pycache__/
 *.pyc
 .agents/skills/
 .claude/
+sensedoc.db
+storage/
+.pytest_cache/
+evaluation/runs/

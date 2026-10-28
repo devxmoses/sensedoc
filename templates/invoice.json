@@ -8,9 +8,13 @@
      "description": "Date the invoice was issued"},
     {"name": "Supplier", "type": "text",
      "description": "Company that issued the invoice"},
+    {"name": "Subtotal", "type": "currency",
+     "description": "Total before tax"},
+    {"name": "Tax", "type": "currency",
+     "description": "Tax amount, e.g. VAT"},
     {"name": "Total Amount", "type": "currency", "required": true,
      "description": "Final amount due, including tax"},
-    {"name": "Items", "type": "table",
+    {"name": "Items", "type": "table", "required": true,
      "description": "Every product line on the invoice",
      "columns": [
        {"name": "Product", "type": "text", "description": "Product name exactly as written"},
@@ -18,5 +22,9 @@
        {"name": "Unit Price", "type": "currency"},
        {"name": "Line Total", "type": "currency"}
      ]}
+  ],
+  "rules": [
+    {"type": "table_sum", "table": "Items", "column": "Line Total", "target": "Subtotal"},
+    {"type": "fields_sum", "fields": ["Subtotal", "Tax"], "target": "Total Amount"}
   ]
 }

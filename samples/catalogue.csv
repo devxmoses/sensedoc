@@ -1,0 +1,16 @@
+sku,brand,type,size_ml,pack_type,pack_count,brand_aliases
+CC-ORIG-500-PET,Coca-Cola,Original,500,pet,1,Coke;Coca Cola
+CC-ORIG-350-CAN,Coca-Cola,Original,350,can,1,Coke;Coca Cola
+CC-ORIG-330-CAN,Coca-Cola,Original,330,can,1,Coke;Coca Cola
+CC-ORIG-1000-PET,Coca-Cola,Original,1000,pet,1,Coke;Coca Cola
+CC-ORIG-350-CAN-12,Coca-Cola,Original,350,can,12,Coke;Coca Cola
+CC-ZERO-500-PET,Coca-Cola,Zero Sugar,500,pet,1,Coke;Coca Cola
+CC-ZERO-350-CAN,Coca-Cola,Zero Sugar,350,can,1,Coke;Coca Cola
+CC-ZERO-330-CAN,Coca-Cola,Zero Sugar,330,can,1,Coke;Coca Cola
+CC-DIET-330-CAN,Coca-Cola,Diet,330,can,1,Coke;Coca Cola
+FANTA-ORA-500-PET,Fanta,Orange,500,pet,1,
+FANTA-ORA-350-CAN,Fanta,Orange,350,can,1,
+FANTA-ORA-350-CAN-12,Fanta,Orange,350,can,12,
+SPRITE-500-PET,Sprite,Lemon-Lime,500,pet,1,
+PEPSI-ORIG-1000-PET,Pepsi,Original,1000,pet,1,
+PEPSI-ORIG-500-PET,Pepsi,Original,500,pet,1,

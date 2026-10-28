@@ -1,0 +1,30 @@
+{
+  "name": "Product Price List",
+  "document_type": "price list, leaflet or shelf photo",
+  "fields": [
+    {"name": "Store Name", "type": "text",
+     "description": "Shop or supermarket that published the prices"},
+    {"name": "Valid From", "type": "date",
+     "description": "First day the prices apply, if shown"},
+    {"name": "Products", "type": "table", "required": true,
+     "description": "One row per priced product variant. If one line lists several sizes or prices (e.g. '35cl / 50cl - 300 / 450'), split it into one row per size. Do not fill any attribute from general knowledge: use null when the document does not show it.",
+     "columns": [
+       {"name": "Product Text", "type": "text",
+        "description": "The product wording exactly as printed"},
+       {"name": "Brand", "type": "text", "examples": ["Coca-Cola", "Fanta", "Pepsi"]},
+       {"name": "Flavour", "type": "text",
+        "description": "Flavour or variant as printed. Use 'Original' only when the regular product is shown with no variant name.",
+        "examples": ["Original", "Zero Sugar", "Diet", "Orange"]},
+       {"name": "Size", "type": "text", "normalize": "volume_ml",
+        "description": "Size exactly as printed", "examples": ["50cl", "1L", "33cl"]},
+       {"name": "Pack Type", "type": "text",
+        "description": "can, PET or glass. Use the picture if the text does not say."},
+       {"name": "Pack Count", "type": "number",
+        "description": "Number of units in the pack: 1 for a single item, 12 for a 12-pack"},
+       {"name": "Price", "type": "currency"},
+       {"name": "Price Basis", "type": "text",
+        "description": "'each' for a single-unit price, 'per pack' for a multi-pack price"}
+     ]}
+  ],
+  "product_table": "Products"
+}

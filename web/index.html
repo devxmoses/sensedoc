@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SenseDoc</title>
+<meta name="description" content="SenseDoc turns invoices, receipts, price lists and photos into validated, structured data.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff; --bg-soft: #f4f7f6; --ink: #0b1f1d; --muted: #52645f; --line: #dde5e3;
+    --brand: #0f766e; --brand-ink: #ffffff; --brand-soft: #ccfbf1; --warn: #b45309; --warn-soft: #fef3c7;
+    --ok: #15803d; --ok-soft: #dcfce7; --card: #ffffff; --shadow: 0 1px 2px rgba(11,31,29,.06), 0 8px 24px rgba(11,31,29,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0b1514; --bg-soft: #13211f; --ink: #e6f2f0; --muted: #9fb3ae; --line: #22332f;
+      --brand: #2dd4bf; --brand-ink: #062521; --brand-soft: #123a35; --warn: #fbbf24; --warn-soft: #3a2a0b;
+      --ok: #4ade80; --ok-soft: #0f2e1b; --card: #101c1a; --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b1514; --bg-soft: #13211f; --ink: #e6f2f0; --muted: #9fb3ae; --line: #22332f;
+    --brand: #2dd4bf; --brand-ink: #062521; --brand-soft: #123a35; --warn: #fbbf24; --warn-soft: #3a2a0b;
+    --ok: #4ade80; --ok-soft: #0f2e1b; --card: #101c1a; --shadow: none;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 Inter, system-ui, sans-serif; }
+  a { color: inherit; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; text-decoration: none; }
+  .logo svg { width: 30px; height: 30px; }
+  .navlinks { display: flex; gap: 22px; align-items: center; font-size: 15px; }
+  .navlinks a { text-decoration: none; color: var(--muted); }
+  .navlinks a:hover { color: var(--ink); }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 10px; font-weight: 600;
+         text-decoration: none; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .btn.primary { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+  .btn:hover { filter: brightness(1.05); }
+  header.hero { padding: 64px 0 40px; display: grid; grid-template-columns: 1.05fr 1fr; gap: 48px; align-items: center; }
+  .eyebrow { display: inline-block; font-size: 13px; font-weight: 600; color: var(--brand); background: var(--brand-soft);
+             padding: 4px 12px; border-radius: 99px; margin-bottom: 18px; }
+  h1 { font-size: clamp(34px, 5vw, 54px); line-height: 1.08; margin: 0 0 18px; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(26px, 3.4vw, 36px); line-height: 1.15; margin: 0 0 12px; letter-spacing: -0.01em; }
+  h3 { margin: 0 0 6px; font-size: 18px; }
+  .lead { font-size: 19px; color: var(--muted); margin: 0 0 28px; max-width: 34em; }
+  .ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+  .demo { background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
+  .demo-head { display: flex; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--line);
+               font-size: 13px; color: var(--muted); background: var(--bg-soft); }
+  .demo table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .demo td { padding: 10px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .demo tr:last-child td { border-bottom: 0; }
+  .demo td:first-child { color: var(--muted); }
+  .pill { font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 99px; white-space: nowrap; }
+  .pill.ok { color: var(--ok); background: var(--ok-soft); }
+  .pill.warn { color: var(--warn); background: var(--warn-soft); }
+  section { padding: 56px 0; }
+  section.soft { background: var(--bg-soft); }
+  .sub { color: var(--muted); max-width: 44em; margin: 0 0 32px; font-size: 17px; }
+  .grid { display: grid; gap: 16px; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  .num { font-size: 13px; font-weight: 700; color: var(--brand); margin-bottom: 8px; }
+  .stat { font-size: 38px; font-weight: 800; letter-spacing: -0.02em; color: var(--brand); line-height: 1.1; }
+  .stat-label { font-size: 14px; color: var(--muted); margin-top: 6px; }
+  .flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 14px; font-weight: 600; margin-top: 8px; }
+  .flow span { background: var(--card); border: 1px solid var(--line); padding: 8px 12px; border-radius: 8px; }
+  .flow i { color: var(--muted); font-style: normal; }
+  .matching { width: 100%; border-collapse: collapse; font-size: 15px; background: var(--card); border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
+  .matching th, .matching td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .matching th { font-size: 13px; color: var(--muted); font-weight: 600; background: var(--bg-soft); }
+  .tablewrap { overflow-x: auto; }
+  code { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.9em; background: var(--bg-soft); padding: 1px 6px; border-radius: 5px; }
+  footer { padding: 32px 0 48px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
+  .cta-band { text-align: center; }
+  .cta-band .ctas { justify-content: center; }
+  @media (max-width: 860px) {
+    header.hero { grid-template-columns: 1fr; padding-top: 32px; }
+    .g3, .g4 { grid-template-columns: 1fr 1fr; }
+    .navlinks a.hide-sm { display: none; }
+  }
+  @media (max-width: 520px) { .g3, .g4 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a class="logo" href="/">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="3" width="18" height="24" rx="3" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M9 10h10M9 15h10M9 20h6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="24" cy="23" r="6" fill="#0f766e"/><path d="M21.3 23l1.8 1.8 3.4-3.6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      SenseDoc
+    </a>
+    <div class="navlinks">
+      <a class="hide-sm" href="#how">How it works</a>
+      <a class="hide-sm" href="#variants">Variant matching</a>
+      <a class="hide-sm" href="#results">Results</a>
+      <a href="/docs">API</a>
+      <a class="btn primary" href="/app">Open the app</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div>
+      <span class="eyebrow">Intelligent document processing</span>
+      <h1>Stop typing data from documents into spreadsheets.</h1>
+      <p class="lead">SenseDoc reads invoices, receipts, price lists and phone photos, extracts exactly the fields you define, checks every value, and only asks a person about the ones it is unsure of.</p>
+      <div class="ctas">
+        <a class="btn primary" href="/app">Try it with demo files →</a>
+        <a class="btn" href="#how">See how it works</a>
+      </div>
+    </div>
+    <div class="demo" role="img" aria-label="Example extraction result from a supermarket leaflet">
+      <div class="demo-head"><span>leaflet_01.png · Product Price List</span><span>20.9 s</span></div>
+      <table>
+        <tr><td>Coca-Cola 50cl · ₦500</td><td><b>CC-ORIG-500-PET</b></td><td><span class="pill ok">auto-approved</span></td></tr>
+        <tr><td>Coca-Cola 35cl, 12 cans · ₦5,400</td><td><b>CC-ORIG-350-CAN-12</b><br><small>unit price ₦450</small></td><td><span class="pill ok">auto-approved</span></td></tr>
+        <tr><td>Coke Zero 50cl · ₦520</td><td><b>CC-ZERO-500-PET</b></td><td><span class="pill ok">auto-approved</span></td></tr>
+        <tr><td>Coke Zero Can · ₦450</td><td>33cl or 35cl?<br><small>size missing: 2 SKUs fit</small></td><td><span class="pill warn">needs review</span></td></tr>
+        <tr><td>Fanta Orange 35cl · ₦350</td><td><b>FANTA-ORA-350-CAN</b></td><td><span class="pill ok">auto-approved</span></td></tr>
+      </table>
+    </div>
+  </header>
+</div>
+
+<section class="soft">
+  <div class="wrap">
+    <h2>The problem</h2>
+    <p class="sub">Finance, operations and market-research teams still copy prices, totals and line items by hand from PDFs, scans and phone photos. It's slow, error-prone, and it doesn't scale. Generic OCR gives you text, not the fields you need, and it can't tell Coke Zero 33cl from Coke Original 35cl.</p>
+    <div class="grid g3">
+      <div class="card"><h3>Any file</h3><p>Digital PDFs, scanned PDFs, JPG/PNG photos, Excel, CSV and Word, uploaded in bulk.</p></div>
+      <div class="card"><h3>Your fields</h3><p>You define the template: names, types, required flags, tables. No code, no model training.</p></div>
+      <div class="card"><h3>Trustworthy output</h3><p>Every value is checked against the page and the maths, then scored. Uncertain values go to a person.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <h2>How it works</h2>
+    <p class="sub">Every file runs through one background pipeline. Confidence decides whether a value is exported directly or checked by a person first.</p>
+    <div class="flow" aria-label="Pipeline">
+      <span>Upload</span><i>→</i><span>Read text or image</span><i>→</i><span>LLM extraction</span><i>→</i><span>Validate</span><i>→</i><span>Confidence</span><i>→</i><span>Review if unsure</span><i>→</i><span>Export</span>
+    </div>
+    <div class="grid g4" style="margin-top:28px">
+      <div class="card"><div class="num">01 · Define</div><h3>Template → schema</h3><p>Your template becomes a Pydantic model at runtime. The model must return exactly those fields and types.</p></div>
+      <div class="card"><div class="num">02 · Read</div><h3>Text first, vision when needed</h3><p>Digital files send text (cheap, exact). Scans and photos send the image to Gemini, which sees the layout.</p></div>
+      <div class="card"><div class="num">03 · Check</div><h3>Validate and score</h3><p>Is the value printed on the page? Do line items add up to the total? Are required fields present?</p></div>
+      <div class="card"><div class="num">04 · Recover</div><h3>Retry, fall back, never crash</h3><p>Bad output is re-prompted with the error, then sent to a second model. Failures are recorded, not lost.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="variants" class="soft">
+  <div class="wrap">
+    <h2>Every price tied to one exact product</h2>
+    <p class="sub">One brand can have 20+ SKUs at different prices. SenseDoc extracts brand, flavour, size, pack type and pack count separately, filters the catalogue by the hard attributes, and ranks the rest by flavour. If more than one SKU still fits, it asks. It never guesses, and it learns from each correction.</p>
+    <div class="tablewrap">
+      <table class="matching">
+        <thead><tr><th>Leaflet text</th><th>Extracted variant</th><th>Matched SKU</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td>Coke 50cl ₦500 (bottle pictured)</td><td>Coca-Cola Original, 500 ml, PET, single</td><td>CC-ORIG-500-PET</td><td><span class="pill ok">auto-approved</span></td></tr>
+          <tr><td>Coke Zero can ₦450</td><td>Coca-Cola Zero, size missing, can</td><td>33cl or 35cl can</td><td><span class="pill warn">review: size missing</span></td></tr>
+          <tr><td>Coke 35cl x12 ₦5,400</td><td>Coca-Cola Original, 350 ml, can, 12-pack</td><td>CC-ORIG-350-CAN-12</td><td><span class="pill ok">auto-approved · ₦450/unit</span></td></tr>
+          <tr><td>Coke ₦400</td><td>Coca-Cola, nothing else</td><td>9 candidates</td><td><span class="pill warn">review: variant unknown</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="results">
+  <div class="wrap">
+    <h2>Measured, not promised</h2>
+    <p class="sub" id="eval-caption">Results from the labelled test set: invoices as digital PDFs and as tilted, blurred photos, receipt photos, and supermarket leaflets full of look-alike variants.</p>
+    <div class="grid g4">
+      <div class="card"><div class="stat" id="s-acc">–</div><div class="stat-label">field-level accuracy</div></div>
+      <div class="card"><div class="stat" id="s-auto">–</div><div class="stat-label">accuracy of auto-approved values</div></div>
+      <div class="card"><div class="stat" id="s-variant">–</div><div class="stat-label">correct SKU on auto-approved product rows</div></div>
+      <div class="card"><div class="stat" id="s-latency">–</div><div class="stat-label">median time per document</div></div>
+    </div>
+    <p class="sub" style="margin-top:20px;font-size:14px">Run it yourself: <code>uv run python evaluation/run_eval.py</code>. Full table in <code>evaluation/RESULTS.md</code>.</p>
+  </div>
+</section>
+
+<section class="soft cta-band">
+  <div class="wrap">
+    <h2>See it on real files</h2>
+    <p class="sub" style="margin:0 auto 24px">Upload the demo invoice, receipt photo and leaflets, watch them process, fix the one value it flags, and export to Excel.</p>
+    <div class="ctas">
+      <a class="btn primary" href="/app">Open the app →</a>
+      <a class="btn" href="/docs">Explore the REST API</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">SenseDoc · built with FastAPI, Pydantic, LangChain + Gemini, Celery, PostgreSQL and Streamlit.</div>
+</footer>
+
+<script>
+  // fill the results section from the latest evaluation run, if there is one
+  fetch("/metrics").then(r => r.json()).then(m => {
+    const e = m.evaluation;
+    if (!e) return;
+    const s = e.summary, pct = x => Math.round(x * 100) + "%";
+    document.getElementById("s-acc").textContent = pct(s.field_accuracy);
+    document.getElementById("s-auto").textContent = pct(s.auto_approved_accuracy);
+    document.getElementById("s-variant").textContent = pct(s.variant_accuracy);
+    document.getElementById("s-latency").textContent = s.median_latency_s.toFixed(1) + " s";
+    document.getElementById("eval-caption").textContent =
+      `Measured on ${e.documents} labelled documents with ${e.model}: invoices as digital PDFs and as tilted, blurred photos, receipt photos, and supermarket leaflets full of look-alike variants.`;
+  }).catch(() => {});
+</script>
+</body>
+</html>
