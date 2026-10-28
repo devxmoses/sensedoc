@@ -75,3 +75,63 @@ def test_template_edit_creates_new_version(client):
 def test_rejects_unsupported_files(client):
     response = client.post("/documents", data={"template_id": 1}, files=[("files", ("notes.exe", b"x"))])
     assert response.status_code == 415
+
+
+def upload_invoice(client) -> dict:
+    templates = {t["name"]: t["id"] for t in client.get("/templates").json()}
+    with open(ROOT / "samples" / "invoice_001.pdf", "rb") as f:
+        created = client.post("/documents", data={"template_id": templates["Supplier Invoice"]}, files=[("files", f)]).json()
+    return client.get(f"/documents/{created[0]['id']}").json()
+
+
+def test_values_are_highlighted_on_the_page(client):
+    doc = upload_invoice(client)
+    total = next(v for v in doc["values"] if v["field_path"] == "subtotal")
+    assert total["page"] == 1 and total["bbox"]
+    plain = client.get(f"/documents/{doc['id']}/preview").content
+    boxed = client.get(f"/documents/{doc['id']}/preview", params={"value_id": total["id"]}).content
+    assert boxed[:8] == b"\x89PNG\r\n\x1a\n" and boxed != plain
+
+
+def test_label_needs_every_value_reviewed_first(client):
+    doc = upload_invoice(client)  # the fake answer has a wrong total, so it needs review
+    assert client.post(f"/documents/{doc['id']}/label", json={"labelled_by": "t"}).status_code == 409
+    for v in client.get("/review-queue").json():
+        if v["document_id"] == doc["id"]:
+            client.patch(f"/values/{v['id']}", json={"action": "correct" if v["field_path"] == "total_amount" else "approve",
+                                                     "new_value": "22575"})
+    saved = client.post(f"/documents/{doc['id']}/label", json={"labelled_by": "t"})
+    assert saved.status_code == 201
+    label = next(l for l in client.get("/labels").json() if l["document_id"] == doc["id"])
+    assert label["labelled_by"] == "t"
+
+
+def test_api_token(client, monkeypatch):
+    from sensedoc import config
+
+    monkeypatch.setattr(config, "API_TOKEN", "secret")
+    assert client.get("/templates").status_code == 401
+    assert client.get("/templates", headers={"Authorization": "Bearer secret"}).status_code == 200
+    assert client.get("/health").status_code == 200  # public
+    assert client.get("/").status_code == 200  # landing page stays public
+
+
+def test_assistant_answers_only_from_sources(client, monkeypatch):
+    from sensedoc import assistant, extractor
+
+    upload_invoice(client)
+
+    class FakeLLM:
+        def with_structured_output(self, schema):
+            return self
+
+        def invoke(self, messages):
+            prompt = messages[1][1]
+            assert "INV-2026-0147" in prompt  # the retrieved page text reached the model
+            return assistant.Answer(found=True, answer="The invoice total is NGN 22,575.00.", sources=[1, 99])
+
+    monkeypatch.setattr(extractor, "get_llm", lambda model: FakeLLM())
+    reply = client.post("/ask", json={"question": "What is the total on invoice INV-2026-0147?"}).json()
+    assert reply["found"] and "22,575" in reply["answer"]
+    assert [c["source"] for c in reply["citations"]] == [1]  # the made-up source 99 is dropped
+    assert reply["citations"][0]["page"] == 1

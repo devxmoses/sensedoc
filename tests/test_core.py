@@ -79,8 +79,23 @@ def test_missing_required_field(invoice_doc):
     assert result.confidence == 0.0
 
 
-def test_image_values_get_lower_confidence():
-    doc = read_document(ROOT / "samples" / "invoice_001_photo.png")
+def test_image_values_without_ocr_get_lower_confidence():
+    doc = read_document(ROOT / "samples" / "invoice_001_photo.png", ocr=False)
     results = validate(Extraction(**CORRECT), TEMPLATE, doc)
     assert {round(r.confidence, 2) for r in results} == {0.85}
     assert document_status(results) == "done"
+
+
+def test_ocr_confirms_values_read_from_a_photo():
+    doc = read_document(ROOT / "samples" / "invoice_001_photo.png")
+    assert "INV-2026-0147" in doc.ocr_text
+    results = {r.name: r for r in validate(Extraction(**CORRECT), TEMPLATE, doc)}
+    assert results["invoice_number"].confidence == 1.0
+    assert results["total_amount"].page == 1 and results["total_amount"].bbox is not None
+
+
+def test_values_in_a_digital_pdf_get_their_position(invoice_doc):
+    results = {r.name: r for r in validate(Extraction(**CORRECT), TEMPLATE, invoice_doc)}
+    x0, y0, x1, y1 = results["invoice_number"].bbox
+    assert 0 <= x0 < x1 <= 1 and 0 <= y0 < y1 <= 1
+    assert results["subtotal"].bbox[1] > results["invoice_number"].bbox[1]  # the subtotal is lower on the page

@@ -45,16 +45,11 @@ with st.container(horizontal=True, vertical_alignment="center"):
 if doc["error"]:
     st.error(doc["error"], icon=":material/error:")
 
+values = [v for v in doc.get("values") or [] if v["status"] != "superseded"]
 left, right = st.columns([2, 3])
-with left:
-    png = preview_png(doc_id)
-    if png:
-        st.image(png, alt=f"Page 1 of {doc['filename']}")
-    else:
-        st.caption("No preview for this file type.")
 
 with right:
-    values = doc.get("values") or []
+    picked = None
     if values:
         df = pd.DataFrame(
             [
@@ -63,24 +58,43 @@ with right:
                     "value": "" if v["value"] is None else str(v["value"]),
                     "confidence": v["confidence"],
                     "status": v["status"].replace("_", " "),
+                    "page": v["page"],
                     "notes": "; ".join(v["issues"]),
                 }
                 for v in values
-                if v["status"] != "superseded"
             ]
         )
-        st.dataframe(
+        st.caption("Click a row to see where the value is on the page.")
+        chosen = st.dataframe(
             df,
             hide_index=True,
             height=520,
+            on_select="rerun",
+            selection_mode="single-row",
             column_config={
                 "confidence": st.column_config.ProgressColumn(min_value=0, max_value=1, format="%.2f"),
+                "page": st.column_config.NumberColumn(format="%d"),
                 "notes": st.column_config.TextColumn(width="large"),
             },
+            key=f"values-{doc_id}",
             alt="Extracted values with confidence",
         )
+        if chosen.selection.rows:
+            picked = values[chosen.selection.rows[0]]
         run = doc["run"]
         st.caption(
             f"{run['model']} · {run['latency_ms'] / 1000:.1f} s · {run['tokens_in']:,} tokens in, "
             f"{run['tokens_out']:,} out · ${run['cost_usd']:.4f} · attempts: {run['attempts']}"
         )
+
+with left:
+    page = 1
+    if (doc["page_count"] or 1) > 1 and not (picked and picked["page"]):
+        page = st.number_input("Page", min_value=1, max_value=doc["page_count"], value=1)
+    png = preview_png(doc_id, page, picked["id"] if picked and picked["bbox"] else None)
+    if png:
+        st.image(png, alt=f"Page of {doc['filename']}")
+        if picked and not picked["bbox"]:
+            st.caption(f"Couldn't find where '{picked['value']}' is printed on the page.")
+    else:
+        st.caption("No preview for this file type.")

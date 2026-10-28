@@ -9,3 +9,5 @@ sensedoc.db
 storage/
 .pytest_cache/
 evaluation/runs/
+evaluation/real/
+.streamlit/secrets.toml

@@ -3,14 +3,23 @@
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import JSON, Float, ForeignKey, String, Text, create_engine, select
+from sqlalchemy import JSON, Float, ForeignKey, String, Text, create_engine, select, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship, sessionmaker
 
 from sensedoc import config
 from sensedoc.schema_builder import Rule, Template, TemplateField, to_key
 
-connect_args = {"check_same_thread": False} if config.DATABASE_URL.startswith("sqlite") else {}
-engine = create_engine(config.DATABASE_URL, connect_args=connect_args)
+if config.IS_POSTGRES:
+    # prepare_threshold=None: Supabase's connection pooler (pgbouncer) can't handle prepared statements
+    connect_args = {"prepare_threshold": None}
+    from pgvector.sqlalchemy import Vector
+
+    EmbeddingType = Vector(config.EMBED_DIMS)  # a real vector column, searchable with an index
+else:
+    connect_args = {"check_same_thread": False}
+    EmbeddingType = JSON  # SQLite has no vector type: store the numbers as JSON
+
+engine = create_engine(config.DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
 SessionLocal = sessionmaker(engine, expire_on_commit=False)
 
 
@@ -124,8 +133,55 @@ class ProductRow(Base):
     aliases: Mapped[list[Any]] = mapped_column(default=list)  # learned from reviewer corrections
 
 
+class LabelRow(Base):
+    """A human-verified answer for one document: becomes part of the real evaluation set."""
+
+    __tablename__ = "labels"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(ForeignKey("documents.id"), unique=True)
+    expected: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    labelled_by: Mapped[str] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(default=now)
+    document: Mapped[DocumentRow] = relationship()
+
+
+class ChunkRow(Base):
+    """A page-sized piece of a document's text, for the knowledge assistant."""
+
+    __tablename__ = "chunks"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(ForeignKey("documents.id"), index=True)
+    page: Mapped[int] = mapped_column(default=1)
+    text: Mapped[str] = mapped_column(Text)
+    embedding: Mapped[Any | None] = mapped_column(EmbeddingType)  # None if embedding was unavailable
+    document: Mapped[DocumentRow] = relationship()
+
+
 def create_tables() -> None:
+    if config.IS_POSTGRES:
+        with engine.begin() as conn:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # pgvector (built into Supabase)
     Base.metadata.create_all(engine)
+    if config.IS_POSTGRES:
+        upgrade_chunks_to_vector()
+
+
+def upgrade_chunks_to_vector() -> None:
+    """Databases created before pgvector stored embeddings as JSON: switch the column, then add the index.
+
+    Old embeddings are dropped; POST /assistant/reindex rebuilds them.
+    """
+    with engine.begin() as conn:
+        kind = conn.scalar(
+            text("SELECT udt_name FROM information_schema.columns WHERE table_name = 'chunks' AND column_name = 'embedding'")
+        )
+        if kind != "vector":
+            conn.execute(text("ALTER TABLE chunks DROP COLUMN IF EXISTS embedding"))
+            conn.execute(text(f"ALTER TABLE chunks ADD COLUMN embedding vector({config.EMBED_DIMS})"))
+        # HNSW: an index that finds the nearest vectors without comparing against every chunk
+        conn.execute(
+            text("CREATE INDEX IF NOT EXISTS chunks_embedding_hnsw ON chunks USING hnsw (embedding vector_cosine_ops)")
+        )
 
 
 # ---------- Template <-> database ----------

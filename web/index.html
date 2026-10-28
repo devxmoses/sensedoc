@@ -154,6 +154,18 @@
   </div>
 </section>
 
+<section>
+  <div class="wrap">
+    <h2>Every value, traceable</h2>
+    <p class="sub">Trust comes from being able to check. SenseDoc shows where each value came from, lets you question your documents, and gets better with each correction.</p>
+    <div class="grid g3">
+      <div class="card"><h3>Click to see the source</h3><p>Every value is boxed on the page it came from, on digital PDFs and on tilted phone photos alike, thanks to OCR running alongside the model.</p></div>
+      <div class="card"><h3>Ask your documents</h3><p>"What's the total on invoice INV-2026-9313?" Answers come only from your files, with the document and page cited. If the files don't say, neither does SenseDoc.</p></div>
+      <div class="card"><h3>Learns from corrections</h3><p>Every correction is recorded, becomes a reusable alias for product matching, and can be saved as test data to measure accuracy on your real documents.</p></div>
+    </div>
+  </div>
+</section>
+
 <section id="variants" class="soft">
   <div class="wrap">
     <h2>Every price tied to one exact product</h2>
@@ -203,8 +215,7 @@
 
 <script>
   // fill the results section from the latest evaluation run, if there is one
-  fetch("/metrics").then(r => r.json()).then(m => {
-    const e = m.evaluation;
+  fetch("/evaluation").then(r => r.json()).then(e => {
     if (!e) return;
     const s = e.summary, pct = x => Math.round(x * 100) + "%";
     document.getElementById("s-acc").textContent = pct(s.field_accuracy);
@@ -212,7 +223,9 @@
     document.getElementById("s-variant").textContent = pct(s.variant_accuracy);
     document.getElementById("s-latency").textContent = s.median_latency_s.toFixed(1) + " s";
     document.getElementById("eval-caption").textContent =
-      `Measured on ${e.documents} labelled documents with ${e.model}: invoices as digital PDFs and as tilted, blurred photos, receipt photos, and supermarket leaflets full of look-alike variants.`;
+      e.set === "real documents"
+        ? `Measured on ${e.documents} real, hand-verified documents with ${e.model}.`
+        : `Measured on ${e.documents} labelled synthetic documents with ${e.model}: invoices as digital PDFs and as tilted, blurred photos, receipt photos, and supermarket leaflets full of look-alike variants.`;
   }).catch(() => {});
 </script>
 </body>

@@ -67,3 +67,12 @@ def to_file(rows: list[dict], fmt: str) -> tuple[bytes, str]:
         df.to_excel(buffer, index=False, sheet_name="SenseDoc")
         return buffer.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     return df.to_json(orient="records", indent=2, date_format="iso").encode(), "application/json"
+
+
+def labelled_answer(doc: DocumentRow) -> dict:
+    """A document's verified values, shaped like the evaluation labels: {field: value, table: [rows]}."""
+    fields, tables = document_values(doc)
+    answer = dict(fields)
+    for table, rows in tables.items():
+        answer[table] = [{k: v for k, v in rows[i].items() if k not in ("sku_name", "unit_price")} for i in sorted(rows)]
+    return answer

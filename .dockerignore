@@ -8,3 +8,6 @@ scratch
 evaluation/dataset
 plan_docs
 .claude
+evaluation/runs
+evaluation/real
+.streamlit/secrets.toml

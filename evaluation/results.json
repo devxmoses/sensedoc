@@ -1,6 +1,25 @@
 {
-  "run_at": "2026-10-27T11:12:10.922216+00:00",
+  "run_at": "2026-10-28T04:53:57.916415+00:00",
   "model": "gemini-3.5-flash-lite",
+  "set": "synthetic",
+  "photo_route": "vision",
+  "photo_summary": {
+    "documents": 11,
+    "failed": 0,
+    "fields_checked": 170,
+    "field_accuracy": 1.0,
+    "auto_approved_accuracy": 1.0,
+    "needs_review_accuracy": 0.0,
+    "review_rate": 0.00442057942057942,
+    "row_recall": 1.0,
+    "row_precision": 1.0,
+    "variant_rows": 13,
+    "variant_accuracy": 1.0,
+    "variant_auto_approved": 10,
+    "unclear_rows_sent_to_review": "2/2",
+    "median_latency_s": 8.38,
+    "cost_per_1000_pages_usd": 4.294227272727272
+  },
   "documents": 17,
   "wall_clock_s": 0.0,
   "summary": {
@@ -22,7 +41,7 @@
   },
   "routes": [
     {
-      "group": "text route (invoices)",
+      "group": "text route",
       "documents": 6,
       "field accuracy": "100%",
       "auto-approved accuracy": "100%",
@@ -31,7 +50,7 @@
       "USD per 1,000 pages": "2.55"
     },
     {
-      "group": "vision route (invoices)",
+      "group": "vision route",
       "documents": 6,
       "field accuracy": "100%",
       "auto-approved accuracy": "100%",
@@ -51,15 +70,6 @@
       "USD per 1,000 pages": "3.21"
     },
     {
-      "group": "receipt",
-      "documents": 3,
-      "field accuracy": "100%",
-      "auto-approved accuracy": "100%",
-      "review rate": "0%",
-      "median seconds": "13.6",
-      "USD per 1,000 pages": "3.65"
-    },
-    {
       "group": "price_list",
       "documents": 2,
       "field accuracy": "100%",
@@ -67,6 +77,15 @@
       "review rate": "2%",
       "median seconds": "9.9",
       "USD per 1,000 pages": "6.52"
+    },
+    {
+      "group": "receipt",
+      "documents": 3,
+      "field accuracy": "100%",
+      "auto-approved accuracy": "100%",
+      "review rate": "0%",
+      "median seconds": "13.6",
+      "USD per 1,000 pages": "3.65"
     }
   ]
 }
